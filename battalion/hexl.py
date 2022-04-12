@@ -1,6 +1,7 @@
 """ Manage hexs """
 from pygame import draw #pylint: disable=E0401
 
+directions = ("N", "NE", "SE", "S", "SW", "NW")
 def draw_hexs(screen, game_dict):
     """ draw the hexs """
     hexagon = ((0.0, 0.0),(0.333, -0.5), (1.0, -0.5), (1.333, 0.0), (1.0, 0.5), (0.333, 0.5))
@@ -34,29 +35,29 @@ def hex_legal(x, y, game_dict):
 
 def get_hex_coords_from_direction(direction, x, y, game_dict):
     if direction == "N":
-        if hex_legal(x, y-1):
+        if hex_legal(x, y-1, game_dict):
             return x, y-1
     elif direction == "S":
-        if hex_legal(x, y+1):
+        if hex_legal(x, y+1, game_dict):
             return x, y+1
     elif direction == "NE":
-        if x%2 and hex_legal(x+1, y-1):
+        if x%2 and hex_legal(x+1, y-1, game_dict):
             return x+1, y-1
-        elif not x&2 and hex_legal(x+1, y):
+        elif not x%2 and hex_legal(x+1, y, game_dict):
             return x+1, y
     elif direction == "SE":
-        if x%2 and hex_legal(x+1, y):
+        if x%2 and hex_legal(x+1, y, game_dict):
             return x+1, y
-        elif not x&2 and hex_legal(x+1, y+1):
+        elif not x%2 and hex_legal(x+1, y+1, game_dict):
             return x+1, y+1
     elif direction == "NW":
-        if x%2 and hex_legal(x-1, y-1):
+        if x%2 and hex_legal(x-1, y-1, game_dict):
             return x-1, y-1
-        elif not x&2 and hex_legal(x-1, y):
+        elif not x%2 and hex_legal(x-1, y, game_dict):
             return x-1, y
     elif direction == "SW":
-        if x%2 and hex_legal(x-1, y):
+        if x%2 and hex_legal(x-1, y, game_dict):
             return x-1, y
-        elif not x&2 and hex_legal(x-1, y+1):
+        elif not x%2 and hex_legal(x-1, y+1, game_dict):
             return x-1, y+1
     return None, None
