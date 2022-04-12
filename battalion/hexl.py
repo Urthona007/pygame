@@ -26,3 +26,37 @@ def get_hex_offset(x, y, game_dict):
     if x%2:
         y_offset -= game_dict['map_multiplier']/2
     return x * game_dict['map_multiplier'] + game_dict['map_border'], y_offset
+
+def hex_legal(x, y, game_dict):
+    if x >= 0 and x < game_dict["map_width"] and y >= 0 and ((x&2 and y < game_dict["map_height"]) or ((not x&2) and y < game_dict["map_height"]-1)):
+        return True
+    return False
+
+def get_hex_coords_from_direction(direction, x, y, game_dict):
+    if direction == "N":
+        if hex_legal(x, y-1):
+            return x, y-1
+    elif direction == "S":
+        if hex_legal(x, y+1):
+            return x, y+1
+    elif direction == "NE":
+        if x%2 and hex_legal(x+1, y-1):
+            return x+1, y-1
+        elif not x&2 and hex_legal(x+1, y):
+            return x+1, y
+    elif direction == "SE":
+        if x%2 and hex_legal(x+1, y):
+            return x+1, y
+        elif not x&2 and hex_legal(x+1, y+1):
+            return x+1, y+1
+    elif direction == "NW":
+        if x%2 and hex_legal(x-1, y-1):
+            return x-1, y-1
+        elif not x&2 and hex_legal(x-1, y):
+            return x-1, y
+    elif direction == "SW":
+        if x%2 and hex_legal(x-1, y):
+            return x-1, y
+        elif not x&2 and hex_legal(x-1, y+1):
+            return x-1, y+1
+    return None, None
