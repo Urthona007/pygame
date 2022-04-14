@@ -17,6 +17,9 @@ def draw_hexs(screen, game_dict):
                     y_offset + game_dict['map_multiplier'] + \
                     coordinate[1]*game_dict['map_multiplier']))
             hex_color = (0, 100, 0)
+            if game_dict["evacuation_hex"] and game_dict["evacuation_hex"][0] == x \
+                and game_dict["evacuation_hex"][1] == y:
+                hex_color = (190, 190, 0)
             hex_outline_color = (0, 0, 0)
             draw.polygon(screen, hex_color, hex_poly, 0)
             draw.lines(screen, hex_outline_color, True, hex_poly, 3)
