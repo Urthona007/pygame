@@ -20,61 +20,58 @@ def reset_phases(game_dict):
 def evaluate_combat(active_phase):
     return
 
-def ai_circle(battalion):
-    for unit in battalion.units:
-        newx, newy = get_hex_coords_from_direction(directions[game_dict["game_turn"]%6], unit.x, unit.y, game_dict)
-        unit.x = newx
-        unit.y = newy
+def ai_circle(battalion, unit, game_dict):
+    newx, newy = get_hex_coords_from_direction(directions[game_dict["game_turn"]%6], unit.x, unit.y, game_dict)
+    return(f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({newx}, {newy})")
+
 
 from hexl import directions
-def ai_evacuate(battalion):
+import numpy as np
+import queue
+def ai_evacuate(battalion, unit, game_dict):
+    return_str = []
     level = 0
 
     # Create hexnode list counting away from the evacuation hex.
     # Nodes are in form ((x,y), level)
-    hexnode_list = [(game_dict["evacuation_hex"], level), ]
-    while True:
-        level = level + 1
-        new_hexnode_list = []
-        for hex in hexnode_list:
-            if hex[1] == level - 1:
-                for direct in directions:
-                    adjx, adjy = get_hex_coords_from_direction(direct, hex[0][0], hex[0][1], game_dict)
-                    if adjx is not None and adjy is not None:
-                        eligible = True
-                        for existing_hex in hexnode_list:
-                            if existing_hex[0][0] == adjx and existing_hex[0][1] == adjy:
-                                eligible = False
-                                break
-                        if eligible:
-                            new_hexnode_list.append(((adjx, adjy), level))
-        if len(new_hexnode_list) == 0:
-            break
-        else:
-            for hex in new_hexnode_list:
-                hexnode_list.append(hex)
+    hexmap = np.full((game_dict["map_width"], game_dict["map_height"]), 99)
+    hexmap[game_dict["evacuation_hex"][0]][game_dict["evacuation_hex"][1]] = 0
 
-    for unit in battalion.units:
-        for hex in hexnode_list:
-            if unit.x == hex[0][0] and unit.y == hex[0][1]:
-                hexlevel = hex[1]
-                if hexlevel == 0:
-                    print(f"Evacuating {unit.name}")
-                    unit.status = "off_board"
-                    break
-                else:
-                    candidate_list = []
-                    for direct in directions:
-                        adjx, adjy = get_hex_coords_from_direction(direct, unit.x, unit.y, game_dict)
-                        if adjx is not None and adjy is not None:
-                            for adjhex in hexnode_list:
-                                if adjx == adjhex[0][0] and adjy == adjhex[0][1] and adjhex[1] < hexlevel:
-                                    candidate_list.append(adjhex)
-                    assert len(candidate_list)
-                    next_hexnode = candidate_list[randrange(len(candidate_list))]
-                    unit.x = next_hexnode[0][0]
-                    unit.y = next_hexnode[0][1]
-                    break
+    hexnode_queue = queue.Queue()
+    hexnode_queue.put(game_dict["evacuation_hex"])
+    while not hexnode_queue.empty():
+        hex = hexnode_queue.get()
+        for direct in directions:
+            adjx, adjy = get_hex_coords_from_direction(direct, hex[0], hex[1], game_dict)
+            if adjx is not None and adjy is not None and hexmap[adjx][adjy] == 99:
+                hexmap[adjx][adjy] = hexmap[hex[0]][hex[1]]+1
+                hexnode_queue.put((adjx, adjy))
+
+    if hexmap[unit.x][unit.y] == 0:
+        return(f"{unit.name}: EVACUATE")
+    else:
+        candidate_list = []
+        for direct in directions:
+            adjx, adjy = get_hex_coords_from_direction(direct, unit.x, unit.y, game_dict)
+            if adjx is not None and adjy is not None and hexmap[adjx][adjy] < hexmap[unit.x][unit.y]:
+                candidate_list.append((adjx, adjy))
+        assert len(candidate_list)
+        next_hex = candidate_list[randrange(len(candidate_list))]
+        return(f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({next_hex[0]}, {next_hex[1]})")
+
+def process_command(unit, command):
+    print('\t' + command)
+    two_strings = command.split(":")
+    if two_strings[1].find("EVACUATE") != -1:
+         unit.status = "off_board"
+    elif two_strings[1].find("MV") != -1:
+        move_strings = two_strings[1].split()
+        assert "MV" == move_strings[0]
+        start_hex = eval(move_strings[1]+move_strings[2])
+        assert "->" == move_strings[3]
+        end_hex = eval(move_strings[4]+move_strings[5])
+        unit.x = end_hex[0]
+        unit.y = end_hex[1]
 
 def execute_phase(game_dict, active_phase):
     if "combat" in active_phase:
@@ -84,9 +81,13 @@ def execute_phase(game_dict, active_phase):
             for battalion in player.battalion:
                 if battalion.name in active_phase:
                     if battalion.strategy == "Evacuate":
-                        ai_evacuate(battalion)
+                        for unit in battalion.units:
+                            command = ai_evacuate(battalion, unit, game_dict)
+                            process_command(unit, command)
                     else:
-                        ai_circle(battalion)
+                        for unit in battalion.units:
+                            command = ai_circle(battalion, unit, game_dict)
+                            process_command(unit, command)
                     game_dict["update_screen"] = True
 
 def next_phase(game_dict):
