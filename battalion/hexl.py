@@ -32,11 +32,15 @@ def get_hex_offset(x, y, game_dict):
     return x * game_dict['map_multiplier'] + game_dict['map_border'], y_offset
 
 def hex_legal(x, y, game_dict):
-    if x >= 0 and x < game_dict["map_width"] and y >= 0 and ((x&2 and y < game_dict["map_height"]) or ((not x&2) and y < game_dict["map_height"]-1)):
+    """ Very basic check that the hex is legal. """
+    # pylint: disable=R0916
+    if 0 <= x < game_dict["map_width"] and y >= 0 and \
+        ((x&2 and y < game_dict["map_height"]) or ((not x&2) and y < game_dict["map_height"]-1)):
         return True
     return False
 
-def get_hex_coords_from_direction(direction, x, y, game_dict):
+def get_hex_coords_from_direction(direction, x, y, game_dict): # pylint: disable=R0911,R0912
+    """ given a hex and direction, return that hex's address is legal. """
     if direction == "N":
         if hex_legal(x, y-1, game_dict):
             return x, y-1
@@ -46,21 +50,21 @@ def get_hex_coords_from_direction(direction, x, y, game_dict):
     elif direction == "NE":
         if x%2 and hex_legal(x+1, y-1, game_dict):
             return x+1, y-1
-        elif not x%2 and hex_legal(x+1, y, game_dict):
+        if not x%2 and hex_legal(x+1, y, game_dict):
             return x+1, y
     elif direction == "SE":
         if x%2 and hex_legal(x+1, y, game_dict):
             return x+1, y
-        elif not x%2 and hex_legal(x+1, y+1, game_dict):
+        if not x%2 and hex_legal(x+1, y+1, game_dict):
             return x+1, y+1
     elif direction == "NW":
         if x%2 and hex_legal(x-1, y-1, game_dict):
             return x-1, y-1
-        elif not x%2 and hex_legal(x-1, y, game_dict):
+        if not x%2 and hex_legal(x-1, y, game_dict):
             return x-1, y
     elif direction == "SW":
         if x%2 and hex_legal(x-1, y, game_dict):
             return x-1, y
-        elif not x%2 and hex_legal(x-1, y+1, game_dict):
+        if not x%2 and hex_legal(x-1, y+1, game_dict):
             return x-1, y+1
     return None, None
