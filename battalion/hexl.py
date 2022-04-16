@@ -68,3 +68,20 @@ def get_hex_coords_from_direction(direction, x, y, game_dict): # pylint: disable
         if not x%2 and hex_legal(x-1, y+1, game_dict):
             return x-1, y+1
     return None, None
+
+def hex_occupied(x, y, game_dict):
+    for player in game_dict["players"]:
+        for battalion in player.battalion:
+            for unit in battalion.units:
+                if unit.x == x and unit.y == y:
+                    return unit
+    return None
+
+def hex_next_to_enemies(x, y, enemy_player, game_dict):
+    for direct in directions:
+        adjx, adjy = get_hex_coords_from_direction(direct, x, y, game_dict)
+        if adjx is not None and adjy is not None:
+            eunit = hex_occupied(adjx, adjy, game_dict)
+            if eunit and eunit.player == enemy_player:
+                return True
+    return False
