@@ -1,19 +1,19 @@
 """ Functions for AI """
 from random import randrange
 import queue
-from hexl import get_hex_coords_from_direction #pylint: disable=E0401
+from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
 from hexl import directions
 import numpy as np
 
-def evaluate_combat(active_phase):
-    """ Evaluate and execute a combat phase. """
-    return
 
 def ai_circle(unit, game_dict):
     """ return CMD string for unit using strategy CIRCLE. """
     newx, newy = get_hex_coords_from_direction( \
         directions[game_dict["game_turn"]%6], unit.x, unit.y, game_dict)
-    return f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({newx}, {newy})"
+    if not hex_occupied(newx, newy, game_dict):
+        return f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({newx}, {newy})"
+    else:
+        return f"{unit.name}: PASS"
 
 def ai_evacuate(unit, game_dict):
     """ return CMD string for unit using strategy EVACUATE. """
@@ -40,8 +40,10 @@ def ai_evacuate(unit, game_dict):
     for direct in directions:
         adjx, adjy = get_hex_coords_from_direction(direct, unit.x, unit.y, game_dict)
         if adjx is not None and adjy is not None and \
-            hexmap[adjx][adjy] < hexmap[unit.x][unit.y]:
+            hexmap[adjx][adjy] < hexmap[unit.x][unit.y] and \
+            not hex_occupied(adjx, adjy, game_dict):
             candidate_list.append((adjx, adjy))
-    assert len(candidate_list) > 0
+    if len(candidate_list) == 0:
+        return f"{unit.name}: PASS"
     next_hex = candidate_list[randrange(len(candidate_list))]
     return f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({next_hex[0]}, {next_hex[1]})"
