@@ -2,6 +2,15 @@
 from hexl import get_hex_offset
 from pygame import draw #pylint: disable=E0401
 
+def get_unit_by_name(name, game_dict):
+    for player in game_dict["players"]:
+        for battalion in player.battalion:
+            for this_unit in battalion.units:
+                if this_unit.name == name:
+                    return this_unit
+    print(f"ERROR: unit {name} not found?!")
+    return None
+
 def draw_units(screen, game_dict):
     """ Draw all the units. """
     player_unit_color = ((240, 0, 0),(0, 200, 240))
