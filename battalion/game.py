@@ -3,7 +3,7 @@ from time import sleep
 from ast import literal_eval
 from random import randrange
 from unit import get_unit_by_name
-from game_ai import ai_evacuate, ai_circle
+from game_ai import ai_evacuate, ai_circle, ai_prevent_evacuation
 from hexl import directions, hex_next_to_enemies
 from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
 
@@ -106,7 +106,7 @@ def execute_phase(game_dict, active_phase):
                             process_command(unit, command, game_dict)
                     else:
                         for unit in battalion.units:
-                            command = ai_circle(unit, game_dict)
+                            command = ai_prevent_evacuation(unit, game_dict)
                             process_command(unit, command, game_dict)
 
 def next_phase(game_dict):
