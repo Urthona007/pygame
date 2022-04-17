@@ -21,7 +21,7 @@ def reset_phases(game_dict):
 
 def process_command(unit, command, game_dict):
     """ Process a text-based unit command from a player."""
-    print('\t' + command)
+    print("    " + command)
     two_strings = command.split(": ")
     if two_strings[1].find("EVACUATE") != -1:
         unit.status = "off_board"
@@ -49,7 +49,7 @@ def process_command(unit, command, game_dict):
             if adjx is not None and adjy is not None and \
                 not hex_occupied(adjx, adjy, game_dict) and \
                 not hex_next_to_enemies(adjx, adjy, 1-unit.player, game_dict):
-                    candidate_list.append((adjx, adjy))
+                candidate_list.append((adjx, adjy))
         if len(candidate_list) == 0:
             # Nowhere to retreat.
             print(f"{unit.name} has nowhere to retreat and is destroyed!")
@@ -61,6 +61,8 @@ def process_command(unit, command, game_dict):
             derived_command = f"{unit.name}: MV ({unit.x}, {unit.y}) -> " + \
                 f"({retreat_hex[0]}, {retreat_hex[1]})"
             process_command(unit, derived_command, game_dict)
+
+    game_dict["update_screen"] = True
 
 
 def evaluate_combat(player_num, game_dict):
@@ -74,7 +76,8 @@ def evaluate_combat(player_num, game_dict):
                     for d_unit in d_battalion.units:
                         if d_unit.status == "active":
                             for direct in directions:
-                                adjx, adjy = get_hex_coords_from_direction( direct, a_unit.x, a_unit.y, game_dict)
+                                adjx, adjy = get_hex_coords_from_direction( \
+                                    direct, a_unit.x, a_unit.y, game_dict)
                                 if adjx is not None and adjy is not None:
                                     if adjx == d_unit.x and adjy == d_unit.y:
                                         # Adjacent unit, this means combat
@@ -105,7 +108,6 @@ def execute_phase(game_dict, active_phase):
                         for unit in battalion.units:
                             command = ai_circle(unit, game_dict)
                             process_command(unit, command, game_dict)
-                    game_dict["update_screen"] = True
 
 def next_phase(game_dict):
     """ Basic game operation: Select the next phase randomly and execute it.  """
@@ -115,12 +117,12 @@ def next_phase(game_dict):
         if not phase[1]:
             candidate_phases.append(phase)
     active_phase = candidate_phases[randrange(len(candidate_phases))]
-    print(f"Executing {active_phase[0]}")
+    print(f"  Phase {active_phase[0]}")
     execute_phase(game_dict, active_phase[0])
     for i, phase in enumerate(phase_list):
         if phase[0] == active_phase[0]:
             phase_list[i] = (active_phase[0], True)
-    sleep(1)
+    sleep(2)
 
 def play_game_threaded_function(game_dict, max_turns):
     """ This is the function that starts the game manager thread.  This thread is run in parallel

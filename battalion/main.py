@@ -53,7 +53,7 @@ def main():
         game_dict["players"][0].battalion.append(Battalion(0, "Rommel"))
         game_dict["players"][0].battalion[0].strategy = "Seek and Destroy"
         game_dict["players"][0].battalion[0].units.append( \
-            Unit("infantry", "1st Company", 2, 4, 2, 0))
+            Unit("infantry", "1st Company", 2, 4, 4, 0))
         game_dict["players"][1].battalion.append(Battalion(0, "DeGaulle"))
         game_dict["players"][1].battalion[0].strategy = "Evacuate"
         game_dict["players"][1].battalion[0].units.append( \

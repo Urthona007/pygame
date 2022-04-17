@@ -12,8 +12,7 @@ def ai_circle(unit, game_dict):
         directions[game_dict["game_turn"]%6], unit.x, unit.y, game_dict)
     if not hex_occupied(newx, newy, game_dict):
         return f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({newx}, {newy})"
-    else:
-        return f"{unit.name}: PASS"
+    return f"{unit.name}: PASS"
 
 def ai_evacuate(unit, game_dict):
     """ return CMD string for unit using strategy EVACUATE. """

@@ -3,6 +3,7 @@ from hexl import get_hex_offset
 from pygame import draw #pylint: disable=E0401
 
 def get_unit_by_name(name, game_dict):
+    """ Get unit by name. """
     for player in game_dict["players"]:
         for battalion in player.battalion:
             for this_unit in battalion.units:

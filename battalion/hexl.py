@@ -70,6 +70,7 @@ def get_hex_coords_from_direction(direction, x, y, game_dict): # pylint: disable
     return None, None
 
 def hex_occupied(x, y, game_dict):
+    """ Return a unit if the hex is occupied, else return none. """
     for player in game_dict["players"]:
         for battalion in player.battalion:
             for unit in battalion.units:
@@ -78,6 +79,7 @@ def hex_occupied(x, y, game_dict):
     return None
 
 def hex_next_to_enemies(x, y, enemy_player, game_dict):
+    """ Search the 6 adjacent hexes to see if an enemy is there.  Return True/False. """
     for direct in directions:
         adjx, adjy = get_hex_coords_from_direction(direct, x, y, game_dict)
         if adjx is not None and adjy is not None:
