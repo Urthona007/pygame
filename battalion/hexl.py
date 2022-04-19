@@ -26,10 +26,10 @@ def draw_hexs(screen, game_dict):
 
 def get_hex_offset(x, y, game_dict):
     """ get hex offset in screen coordinates """
-    y_offset = y * game_dict['map_multiplier'] + game_dict['map_border']
+    y_offset = y * game_dict['map_multiplier'] + game_dict['map_border'][1]
     if x%2:
         y_offset -= game_dict['map_multiplier']/2
-    return x * game_dict['map_multiplier'] + game_dict['map_border'], y_offset
+    return x * game_dict['map_multiplier'] + game_dict['map_border'][0], y_offset
 
 def hex_legal(x, y, game_dict):
     """ Very basic check that the hex is legal. """

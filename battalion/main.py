@@ -5,6 +5,7 @@ from game import Player, Battalion, play_game_threaded_function
 from unit import Unit, draw_units
 from hexl import draw_hexs
 import pygame
+import pygame_gui
 
 def draw_map(screen, a_game_dict):
     """ Draw game map. """
@@ -19,7 +20,7 @@ def main():
     if scenario == "Hounds":
         game_dict = {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
             'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 50, \
-            'map_border' : 8, 'unit_width': 32, 'unit_x_offset': 18, 'unit_y_offset': 34, \
+            'map_border' : (100, 8), 'unit_width': 32, 'unit_x_offset': 18, 'unit_y_offset': 34, \
             "game_turn": 1, \
             "game_phases":[("Red Combat", False), ("Blu Combat", False)], "game_running": True, \
             "evacuation_hex": (0,4)}
@@ -53,7 +54,7 @@ def main():
         game_dict["players"][0].battalion.append(Battalion(0, "Rommel"))
         game_dict["players"][0].battalion[0].strategy = "Seek and Destroy"
         game_dict["players"][0].battalion[0].units.append( \
-            Unit("infantry", "1st Company", 2, 4, 4, 0))
+            Unit("infantry", "1st Company", 2, 8, 1, 0))
         game_dict["players"][1].battalion.append(Battalion(0, "DeGaulle"))
         game_dict["players"][1].battalion[0].strategy = "Evacuate"
         game_dict["players"][1].battalion[0].units.append( \
@@ -62,13 +63,31 @@ def main():
     # Add in all movement phases based on how many battalions are specified.
     for player in game_dict["players"]:
         for battalion in player.battalion:
-            game_dict["game_phases"].append((f"{battalion.name} Movement", False))
+            game_dict["game_phases"].append((f"{battalion.name}", False))
 
     pygame.display.set_caption(game_dict['name']) # NOTE: this is not working.  I don't know why.
 
     game_dict["game_running"] = True
     game_screen = pygame.display.set_mode((game_dict['display_width'], game_dict['display_height']))
     game_dict["update_screen"] = True
+
+    gui_manager = pygame_gui.UIManager((game_dict['display_width'], game_dict['display_height']))
+    gui_manager.get_theme().load_theme('battalion/phase_theme.json')
+    turn_label = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 2), (98, 18)),
+                                             text='Turn 1',
+                                             manager=gui_manager)
+
+    pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2,30), (98, 18)),
+                                            text = "Phases:",
+                                            manager=gui_manager)
+    phase_labels = []
+    for idx, phas in enumerate(game_dict["game_phases"]):
+        phase_labels.append(pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 50+20*idx), (98, 18)),
+                                             text=phas[0],
+                                             manager=gui_manager,
+                                             object_id=pygame_gui.core.ObjectID(class_id='@batt_phase_labels',
+                                                                                object_id=f"#phase_{idx}")))
+    clock = pygame.time.Clock()
 
     # OK!  Let's get the game loops started!  This loop is the main (display) loop.  Note that the
     # first time through it will launch the game manager thread.  Both threads use game_dict to
@@ -81,18 +100,24 @@ def main():
         (not player_1_victory_condition(game_dict)) \
         and game_dict["game_running"]:
 
+        time_delta = clock.tick(60)/1000.0
+
         # Get user mouse and keyboard events
         for e in pygame.event.get():
             # print(event)
             if e.type == pygame.QUIT:
                 print("GAME ABORTED BY USER.")
                 game_dict["game_running"] = False
+            gui_manager.process_events(e)
 
         # Redraw the screen as necessary
         if game_dict["update_screen"]:
             game_screen.fill(game_dict['bkg_color'])
             draw_map(game_screen, game_dict)
             draw_units(game_screen, game_dict)
+
+            gui_manager.update(time_delta)
+            gui_manager.draw_ui(game_screen)
             pygame.display.update()
             game_dict["update_screen"] = False
             # If this is the first time through the loop, launch the game manager thread.
