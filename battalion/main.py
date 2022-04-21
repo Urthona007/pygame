@@ -15,16 +15,19 @@ def main():
     """ Start the main code """
     pygame.init()
 
-    # Right now we only have one scenario, Hounds.  Initialize the scenario here.
-    scenario = "Hounds" # pylint: disable-msg=C0103
-    if scenario == "Hounds":
-        game_dict = {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
+    # Game parameters and globals are managed in "game_dict".
+    # 1) Initialize general settings first
+    game_dict = {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
             'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 50, \
             'map_border' : (100, 8), 'unit_width': 32, 'unit_x_offset': 18, 'unit_y_offset': 34, \
             "game_turn": 1, \
-            "game_phases":[("Red Combat", False), ("Blu Combat", False)], "game_running": True, \
-            "evacuation_hex": (0,4)}
+            "game_phases":[("Red Combat", False), ("Blu Combat", False)], "game_running": True \
+            }
 
+    # 2) Initialize specific parameters.  Right now we only have one scenario, Hounds.
+    scenario = "Hounds" # pylint: disable-msg=C0103
+    if scenario == "Hounds":
+        # Define the two players' victory conditions
         def player_0_victory_condition(game_dict):
             """ Player 0 Scenario Hound victory conditions """
             for battalion in game_dict["players"][1].battalion:
@@ -59,30 +62,29 @@ def main():
         game_dict["players"][1].battalion[0].strategy = "Evacuate"
         game_dict["players"][1].battalion[0].units.append( \
             Unit("militia", "Resistance Fighters", 1, 7, 5, 1))
+        game_dict["evacuation_hex"] = (0,4)
 
+    # 3) Initialize derived game parameters.
     # Add in all movement phases based on how many battalions are specified.
     for player in game_dict["players"]:
         for battalion in player.battalion:
             game_dict["game_phases"].append((f"{battalion.name}", False))
 
-    pygame.display.set_caption(game_dict['name']) # NOTE: this is not working.  I don't know why.
-
-    game_dict["game_running"] = True
-    game_screen = pygame.display.set_mode((game_dict['display_width'], game_dict['display_height']))
-    game_dict["update_screen"] = True
-
-    gui_manager = pygame_gui.UIManager((game_dict['display_width'], game_dict['display_height']))
+    # Initialize the gui.
+    game_dict["update_gui"] = False
+    gui_manager = pygame_gui.UIManager((game_dict['display_width'], game_dict['display_height']), \
+        enable_live_theme_updates=True) # Note: enable live theme updates doesn't seem to work and I instead do it manually
     gui_manager.get_theme().load_theme('battalion/phase_theme.json')
-    turn_label = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 2), (98, 18)),
+    game_dict["turn_label"] = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 2), (98, 20)),
                                              text='Turn 1',
                                              manager=gui_manager)
 
-    pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2,30), (98, 18)),
+    pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2,30), (98, 20)),
                                             text = "Phases:",
                                             manager=gui_manager)
     phase_labels = []
     for idx, phas in enumerate(game_dict["game_phases"]):
-        phase_labels.append(pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 50+20*idx), (98, 18)),
+        phase_labels.append(pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 52+22*idx), (98, 20)),
                                              text=phas[0],
                                              manager=gui_manager,
                                              object_id=pygame_gui.core.ObjectID(class_id='@batt_phase_labels',
@@ -92,10 +94,15 @@ def main():
     # OK!  Let's get the game loops started!  This loop is the main (display) loop.  Note that the
     # first time through it will launch the game manager thread.  Both threads use game_dict to
     # communicate information back and forth between the threads.
+    pygame.display.set_caption(game_dict['name']) # NOTE: this is not working.  I don't know why.
+    game_screen = pygame.display.set_mode((game_dict['display_width'], game_dict['display_height']))
+
     first_time = True
     gamemaster_thread = None
+    game_dict["game_running"] = True
+    game_dict["update_screen"] = True
 
-    # Keep looping until someone wins or the game is no longer running
+    # Main game loop.  Keep looping until someone wins or the game is no longer running
     while (not player_0_victory_condition(game_dict)) and \
         (not player_1_victory_condition(game_dict)) \
         and game_dict["game_running"]:
@@ -111,15 +118,25 @@ def main():
             gui_manager.process_events(e)
 
         # Redraw the screen as necessary
-        if game_dict["update_screen"]:
+        if game_dict["update_screen"] or gui_manager.get_theme().check_need_to_reload() or game_dict["update_gui"]:
+            # Redraw screen
             game_screen.fill(game_dict['bkg_color'])
             draw_map(game_screen, game_dict)
             draw_units(game_screen, game_dict)
 
+            # Redraw game turn and phase labels
+            this_turn = game_dict["game_turn"]
+            game_dict["turn_label"].set_text(f"Turn {this_turn}")
+            for lb in phase_labels:
+                lb.rebuild_from_changed_theme_data()
+            game_dict["update_gui"] = False
             gui_manager.update(time_delta)
             gui_manager.draw_ui(game_screen)
+
+            # Update Dispay overall
             pygame.display.update()
             game_dict["update_screen"] = False
+
             # If this is the first time through the loop, launch the game manager thread.
             if first_time:
                 first_time = False
