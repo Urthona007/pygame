@@ -6,6 +6,8 @@ from unit import get_unit_by_name
 from game_ai import ai_evacuate, ai_circle, ai_prevent_evacuation
 from hexl import directions, hex_next_to_enemies
 from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
+import json
+import shutil
 
 def active_phases(game_dict):
     """ Are there any active phases? """
@@ -14,10 +16,46 @@ def active_phases(game_dict):
             return True
     return False
 
+def update_phase_gui(game_dict, active_phase):
+    with open("battalion/phase_theme_tmp.json", "w") as f:
+        bright_green = "#00EE00"
+        dull_green = "#55955e"
+        bright_yellow = "#ffff80"
+        f.write("{\n    \"@batt_phase_labels\":\n    {\n")
+        f.write("        \"colours\":\n        {\n")
+        f.write("            \"dark_bg\": \"#25292e\"\n        }\n    }")
+        for idx, phase in enumerate(game_dict["game_phases"]):
+            f.write(",\n\n")
+            f.write(f"    \"#phase_{idx}\":\n")
+            f.write("    {\n        \"colours\":\n")
+            f.write("        {\n            \"normal_text\": \"")
+            if phase == active_phase:
+                f.write(f"{bright_yellow}")
+                print("Bright yellow")
+            elif phase[1]:
+                f.write(f"{dull_green}")
+            else:
+                f.write(f"{bright_green}")
+            f.write("\"\n        }\n    }")
+        f.write("\n}\n")
+
+    # Extra debug, could be disabled.
+    with open("battalion/phase_theme_tmp.json", "rt") as f:
+        try:
+            theme_dict = json.load(f)
+        except json.decoder.JSONDecodeError:
+            print("JSON load failure for phase_theme_tmp.json.  Investigate please.")
+            exit(-1)
+
+    shutil.copy("battalion/phase_theme_tmp.json", "battalion/phase_theme.json")
+    game_dict["update_gui"] = True
+
 def reset_phases(game_dict):
     """ reset the state of the game phases each turn to False (ie not performed this turn.  """
     for i in range(len(game_dict["game_phases"])):
         game_dict["game_phases"][i] = (game_dict["game_phases"][i][0], False)
+    update_phase_gui(game_dict, "no active phase")
+
 
 def process_command(unit, command, game_dict):
     """ Process a text-based unit command from a player."""
@@ -87,6 +125,13 @@ def evaluate_combat(player_num, game_dict):
                                             combat_str = f"{a_unit.name}: RETREATS"
                                         process_command(a_unit, combat_str, game_dict)
 
+def get_active_phase_idx(active_phase, game_dict):
+    phase_list = game_dict["game_phases"]
+    for idx, phase in enumerate(phase_list):
+        if phase[0] == active_phase:
+            return idx
+    assert(True)
+
 def execute_phase(game_dict, active_phase):
     """ Basic game operation: Execute the input active phase.  """
     if "Combat" in active_phase:
@@ -109,6 +154,8 @@ def execute_phase(game_dict, active_phase):
                             command = ai_prevent_evacuation(unit, game_dict)
                             process_command(unit, command, game_dict)
 
+    #update_phase_gui(game_dict)
+
 def next_phase(game_dict):
     """ Basic game operation: Select the next phase randomly and execute it.  """
     candidate_phases = []
@@ -117,6 +164,7 @@ def next_phase(game_dict):
         if not phase[1]:
             candidate_phases.append(phase)
     active_phase = candidate_phases[randrange(len(candidate_phases))]
+    update_phase_gui(game_dict, active_phase)
     print(f"  Phase {active_phase[0]}")
     execute_phase(game_dict, active_phase[0])
     for i, phase in enumerate(phase_list):
@@ -127,6 +175,7 @@ def next_phase(game_dict):
 def play_game_threaded_function(game_dict, max_turns):
     """ This is the function that starts the game manager thread.  This thread is run in parallel
         to the main (display) thread. """
+    reset_phases(game_dict)
     while game_dict["game_running"]:
         turn = game_dict["game_turn"]
         print(f"Turn {turn}")
