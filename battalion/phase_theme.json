@@ -1,0 +1,41 @@
+{
+    "@batt_phase_labels":
+    {
+        "colours":
+        {
+            "dark_bg": "#25292e"
+        }
+    },
+
+    "#phase_0":
+    {
+        "colours":
+        {
+            "normal_text": "#00EE00"
+        }
+    },
+
+    "#phase_1":
+    {
+        "colours":
+        {
+            "normal_text": "#00EE00"
+        }
+    },
+
+    "#phase_2":
+    {
+        "colours":
+        {
+            "normal_text": "#00EE00"
+        }
+    },
+
+    "#phase_3":
+    {
+        "colours":
+        {
+            "normal_text": "#00EE00"
+        }
+    }
+}
