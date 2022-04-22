@@ -31,7 +31,6 @@ def update_phase_gui(game_dict, active_phase):
             f.write("        {\n            \"normal_text\": \"")
             if phase == active_phase:
                 f.write(f"{bright_yellow}")
-                print("Bright yellow")
             elif phase[1]:
                 f.write(f"{dull_green}")
             else:
@@ -73,6 +72,9 @@ def process_command(unit, command, game_dict):
         end_hex = literal_eval(move_strings[4]+move_strings[5])
         unit.x = end_hex[0]
         unit.y = end_hex[1]
+        unit.animation_countdown = unit.animation_duration = 1.0
+        unit.animation_cmd = move_strings
+        unit.animating = True
     elif two_strings[1].find("ATTACK") != -1:
         attack_strings = two_strings[1].split(" ", 1)
         e_unit = get_unit_by_name(attack_strings[1], game_dict)
@@ -100,7 +102,7 @@ def process_command(unit, command, game_dict):
                 f"({retreat_hex[0]}, {retreat_hex[1]})"
             process_command(unit, derived_command, game_dict)
 
-    game_dict["update_screen"] = True
+    game_dict["update_screen_req"] += 1
 
 
 def evaluate_combat(player_num, game_dict):

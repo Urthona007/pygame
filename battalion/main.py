@@ -91,16 +91,20 @@ def main():
                                                                                 object_id=f"#phase_{idx}")))
     clock = pygame.time.Clock()
 
-    # OK!  Let's get the game loops started!  This loop is the main (display) loop.  Note that the
-    # first time through it will launch the game manager thread.  Both threads use game_dict to
-    # communicate information back and forth between the threads.
     pygame.display.set_caption(game_dict['name']) # NOTE: this is not working.  I don't know why.
     game_screen = pygame.display.set_mode((game_dict['display_width'], game_dict['display_height']))
 
+    # OK!  Let's get the game loops started!
+    #
+    # Note that this program uses two threads.  This is the main (display) thread.  Any display
+    # graphs or gui changes should be effected in this thread.  The first time through it launches
+    # the game manager thread.  Both threads use game_dict to communicate information back and forth
+    # between the threads.  Any game_dict variable should only be written by one of the two threads.
     first_time = True
     gamemaster_thread = None
     game_dict["game_running"] = True
-    game_dict["update_screen"] = True
+    game_dict["update_screen_req"] = 1
+    game_dict["update_screen"] = 0
 
     # Main game loop.  Keep looping until someone wins or the game is no longer running
     while (not player_0_victory_condition(game_dict)) and \
@@ -118,11 +122,15 @@ def main():
             gui_manager.process_events(e)
 
         # Redraw the screen as necessary
-        if game_dict["update_screen"] or gui_manager.get_theme().check_need_to_reload() or game_dict["update_gui"]:
+        if game_dict["update_screen_req"] > game_dict["update_screen"] or gui_manager.get_theme().check_need_to_reload() or game_dict["update_gui"]:
             # Redraw screen
+            if game_dict["update_screen_req"] > game_dict["update_screen"]:
+                game_dict["update_screen"] += 1
             game_screen.fill(game_dict['bkg_color'])
             draw_map(game_screen, game_dict)
-            draw_units(game_screen, game_dict)
+            animating = draw_units(game_screen, game_dict, time_delta)
+            if animating:
+                game_dict["update_screen_req"] += 1
 
             # Redraw game turn and phase labels
             this_turn = game_dict["game_turn"]
@@ -135,7 +143,6 @@ def main():
 
             # Update Dispay overall
             pygame.display.update()
-            game_dict["update_screen"] = False
 
             # If this is the first time through the loop, launch the game manager thread.
             if first_time:
