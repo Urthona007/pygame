@@ -1,4 +1,5 @@
 """ Functions for AI """
+from game_cmd import GameCmd
 from random import randrange
 import queue
 from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
@@ -30,8 +31,8 @@ def ai_circle(unit, game_dict):
     newx, newy = get_hex_coords_from_direction( \
         directions[game_dict["game_turn"]%6], unit.x, unit.y, game_dict)
     if not hex_occupied(newx, newy, game_dict):
-        return f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({newx}, {newy})"
-    return f"{unit.name}: PASS"
+        return(GameCmd(unit, None, "MV", [(unit.x, unit.y), (newx, newy)]))
+    return GameCmd(unit, None, "PASS", None)
 
 def ai_prevent_evacuation(unit, game_dict):
     """ Hunt units while guarding the evacuation point.  """
@@ -66,9 +67,9 @@ def ai_prevent_evacuation(unit, game_dict):
                     candidate_list.append((adjx, adjy))
 
     if len(candidate_list) == 0:
-        return f"{unit.name}: PASS"
+        return GameCmd(unit, None, "PASS", None)
     next_hex = candidate_list[randrange(len(candidate_list))]
-    return f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({next_hex[0]}, {next_hex[1]})"
+    return(GameCmd(unit, None, "MV", [(unit.x, unit.y), next_hex]))
 
 def ai_evacuate(unit, game_dict):
     """ return CMD string for unit using strategy EVACUATE. """
@@ -78,7 +79,7 @@ def ai_evacuate(unit, game_dict):
         game_dict)
 
     if hexmap[unit.x][unit.y] == 0:
-        return f"{unit.name}: EVACUATE"
+        return GameCmd(unit, None, "EVACUATE", None)
 
     # Choose one of the candidates randomly
     candidate_list = []
@@ -89,6 +90,6 @@ def ai_evacuate(unit, game_dict):
             not hex_occupied(adjx, adjy, game_dict):
             candidate_list.append((adjx, adjy))
     if len(candidate_list) == 0:
-        return f"{unit.name}: PASS"
+        return GameCmd(unit, None, "PASS", None)
     next_hex = candidate_list[randrange(len(candidate_list))]
-    return f"{unit.name}: MV ({unit.x}, {unit.y}) -> ({next_hex[0]}, {next_hex[1]})"
+    return(GameCmd(unit, None, "MV", [(unit.x, unit.y), next_hex]))
