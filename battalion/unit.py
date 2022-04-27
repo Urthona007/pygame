@@ -28,6 +28,17 @@ def get_unit_by_name(name, game_dict):
     print(f"ERROR: unit {name} not found?!")
     return None
 
+def attack_double_pulse_interpolation(interpolation):
+    if interpolation < 0.25:
+        interpolation *= 2
+    elif interpolation < 0.5:
+        interpolation = 0.5 - (interpolation - 0.25)*2
+    elif interpolation < 0.75:
+        interpolation = (interpolation - 0.5) * 2
+    else:
+        interpolation = 0.5 - (interpolation - 0.75)*2
+    return interpolation
+
 def draw_units(screen, game_dict, time_delta):
     """ Draw all the units. """
     player_unit_color = ((240, 0, 0),(0, 200, 240))
@@ -37,24 +48,32 @@ def draw_units(screen, game_dict, time_delta):
             for this_unit in battalion.units:
                 if this_unit.status == "active":
                     if this_unit.animating:
-                        cmd = this_unit.animation_cmd
-                        assert "MV" == cmd[0]
-                        start_hex = literal_eval(cmd[1]+cmd[2])
-                        start_x_offset, start_y_offset = get_hex_offset(start_hex[0], start_hex[1], game_dict)
-                        assert "->" == cmd[3]
-                        end_hex = literal_eval(cmd[4]+cmd[5])
-                        end_x_offset, end_y_offset = get_hex_offset(end_hex[0], end_hex[1], game_dict)
+                        game_cmd = this_unit.animation_cmd
+                        start_x_offset, start_y_offset = get_hex_offset(game_cmd.hexs[0], game_dict)
+                        end_x_offset, end_y_offset = get_hex_offset(game_cmd.hexs[1], game_dict)
                         interpolation = (this_unit.animation_duration - this_unit.animation_countdown) \
                             / this_unit.animation_duration
-                        x_offset = start_x_offset + (end_x_offset - start_x_offset) * interpolation
-                        y_offset = start_y_offset + (end_y_offset - start_y_offset) * interpolation
+                        assert 0.0 <= interpolation <= 1.0
+                        if game_cmd.cmd == "MV":
+                            x_offset = start_x_offset + (end_x_offset - start_x_offset) * interpolation
+                            y_offset = start_y_offset + (end_y_offset - start_y_offset) * interpolation
+                        else:
+                            assert game_cmd.cmd == "ATTACK"
+                            # 0->1 to 0->1->0->1->0 double thrust
+                            interpolation = attack_double_pulse_interpolation(interpolation)
+                            x_offset = start_x_offset + (end_x_offset - start_x_offset) * interpolation
+                            y_offset = start_y_offset + (end_y_offset - start_y_offset) * interpolation
                         this_unit.animation_countdown -= time_delta
                         if this_unit.animation_countdown < 0:
                             this_unit.animation_countdown = 0
                             this_unit.animating = False
+                            if game_cmd.cmd == "ATTACK":
+                                print(f"{game_cmd.e_unit.name} destroyed!")
+                                game_cmd.e_unit.x = game_cmd.e_unit.y = -1
+                                game_cmd.e_unit.status = "destroyed"
                         animating = True
                     else:
-                        x_offset, y_offset = get_hex_offset(this_unit.x, this_unit.y, game_dict)
+                        x_offset, y_offset = get_hex_offset((this_unit.x, this_unit.y), game_dict)
 
                     draw.rect(screen, player_unit_color[player.idx], \
                         (x_offset + game_dict['unit_x_offset'], \
