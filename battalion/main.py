@@ -6,6 +6,7 @@ from unit import Unit, draw_units
 from hexl import draw_hexs
 import pygame
 import pygame_gui
+import threading
 
 def draw_map(screen, a_game_dict):
     """ Draw game map. """
@@ -73,7 +74,7 @@ def main():
     # Initialize the gui.
     game_dict["update_gui"] = False
     gui_manager = pygame_gui.UIManager((game_dict['display_width'], game_dict['display_height']), \
-        enable_live_theme_updates=True) # Note: enable live theme updates doesn't seem to work and I instead do it manually
+        enable_live_theme_updates=False) # Note: enable live theme updates doesn't seem to work and I instead do it manually
     gui_manager.get_theme().load_theme('battalion/phase_theme.json')
     game_dict["turn_label"] = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 2), (98, 20)),
                                              text='Turn 1',
@@ -106,6 +107,8 @@ def main():
     game_dict["update_screen_req"] = 1
     game_dict["update_screen"] = 0
 
+    game_dict["theme_lock"] = threading.Lock()
+
     # Main game loop.  Keep looping until someone wins or the game is no longer running
     while (not player_0_victory_condition(game_dict)) and \
         (not player_1_victory_condition(game_dict)) \
@@ -133,6 +136,7 @@ def main():
                 game_dict["update_screen_req"] += 1
 
             # Redraw game turn and phase labels
+            game_dict["theme_lock"].acquire()
             this_turn = game_dict["game_turn"]
             game_dict["turn_label"].set_text(f"Turn {this_turn}")
             for lb in phase_labels:
@@ -140,6 +144,7 @@ def main():
             game_dict["update_gui"] = False
             gui_manager.update(time_delta)
             gui_manager.draw_ui(game_screen)
+            game_dict["theme_lock"].release()
 
             # Update Dispay overall
             pygame.display.update()
