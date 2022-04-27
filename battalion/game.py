@@ -2,6 +2,7 @@
 from time import sleep
 from ast import literal_eval
 from random import randrange
+from game_cmd import GameCmd
 from unit import get_unit_by_name
 from game_ai import ai_evacuate, ai_circle, ai_prevent_evacuation
 from hexl import directions, hex_next_to_enemies
@@ -45,8 +46,10 @@ def update_phase_gui(game_dict, active_phase):
         except json.decoder.JSONDecodeError:
             print("JSON load failure for phase_theme_tmp.json.  Investigate please.")
             exit(-1)
-
+    game_dict["theme_lock"].acquire()
     shutil.copy("battalion/phase_theme_tmp.json", "battalion/phase_theme.json")
+    game_dict["theme_lock"].release()
+
     game_dict["update_gui"] = True
 
 def reset_phases(game_dict):
@@ -56,32 +59,24 @@ def reset_phases(game_dict):
     update_phase_gui(game_dict, "no active phase")
 
 
-def process_command(unit, command, game_dict):
+def process_command(unit, game_cmd, game_dict):
     """ Process a text-based unit command from a player."""
-    print("    " + command)
-    two_strings = command.split(": ")
-    if two_strings[1].find("EVACUATE") != -1:
+    print(f"    {game_cmd}")
+    if game_cmd.cmd == "EVACUATE":
         unit.status = "off_board"
-    elif two_strings[1].find("PASS") != -1:
+    elif game_cmd.cmd == "PASS":
         pass
-    elif two_strings[1].find("MV") != -1:
-        move_strings = two_strings[1].split()
-        assert "MV" == move_strings[0]
-        start_hex = literal_eval(move_strings[1]+move_strings[2])
-        assert "->" == move_strings[3]
-        end_hex = literal_eval(move_strings[4]+move_strings[5])
-        unit.x = end_hex[0]
-        unit.y = end_hex[1]
+    elif game_cmd.cmd == "MV":
+        unit.x = game_cmd.hexs[-1][0]
+        unit.y = game_cmd.hexs[-1][1]
         unit.animation_countdown = unit.animation_duration = 1.0
-        unit.animation_cmd = move_strings
+        unit.animation_cmd = game_cmd
         unit.animating = True
-    elif two_strings[1].find("ATTACK") != -1:
-        attack_strings = two_strings[1].split(" ", 1)
-        e_unit = get_unit_by_name(attack_strings[1], game_dict)
-        print(f"{e_unit.name} destroyed!")
-        e_unit.x = e_unit.y = -1
-        e_unit.status = "destroyed"
-    elif two_strings[1].find("RETREAT") != -1:
+    elif game_cmd.cmd == "ATTACK":
+        unit.animation_countdown = unit.animation_duration = 1.0
+        unit.animation_cmd = game_cmd
+        unit.animating = True
+    elif game_cmd.cmd == "RETREAT":
         # Choose one of the candidates randomly
         candidate_list = []
         for direct in directions:
@@ -98,9 +93,8 @@ def process_command(unit, command, game_dict):
             unit.status = "destroyed"
         else:
             retreat_hex = candidate_list[randrange(len(candidate_list))]
-            derived_command = f"{unit.name}: MV ({unit.x}, {unit.y}) -> " + \
-                f"({retreat_hex[0]}, {retreat_hex[1]})"
-            process_command(unit, derived_command, game_dict)
+            derived_cmd = GameCmd(unit, None, "MV", [(unit.x, unit.y), retreat_hex])
+            process_command(unit, derived_cmd, game_dict)
 
     game_dict["update_screen_req"] += 1
 
@@ -122,10 +116,10 @@ def evaluate_combat(player_num, game_dict):
                                     if adjx == d_unit.x and adjy == d_unit.y:
                                         # Adjacent unit, this means combat
                                         if a_unit.strength > d_unit.strength:
-                                            combat_str = f"{a_unit.name}: ATTACKS {d_unit.name}"
+                                            combat_cmd = GameCmd(a_unit, d_unit, "ATTACK", [(a_unit.x, a_unit.y), (d_unit.x, d_unit.y)])
                                         else:
-                                            combat_str = f"{a_unit.name}: RETREATS"
-                                        process_command(a_unit, combat_str, game_dict)
+                                            combat_cmd = GameCmd(a_unit, None, "RETREAT", [(a_unit.x, a_unit.y),])
+                                        process_command(a_unit, combat_cmd, game_dict)
 
 def get_active_phase_idx(active_phase, game_dict):
     phase_list = game_dict["game_phases"]
