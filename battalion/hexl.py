@@ -9,7 +9,7 @@ def draw_hexs(screen, game_dict):
         for y in range(game_dict['map_height']):
             if not x%2 and y == game_dict['map_height']-1: # Legal?
                 break
-            x_offset, y_offset = get_hex_offset(x, y, game_dict)
+            x_offset, y_offset = get_hex_offset((x, y), game_dict)
             hex_poly = []
             for coordinate in hexagon:
                 hex_poly.append(( \
@@ -24,12 +24,12 @@ def draw_hexs(screen, game_dict):
             draw.polygon(screen, hex_color, hex_poly, 0)
             draw.lines(screen, hex_outline_color, True, hex_poly, 3)
 
-def get_hex_offset(x, y, game_dict):
+def get_hex_offset(a_hex, game_dict):
     """ get hex offset in screen coordinates """
-    y_offset = y * game_dict['map_multiplier'] + game_dict['map_border'][1]
-    if x%2:
+    y_offset = a_hex[1] * game_dict['map_multiplier'] + game_dict['map_border'][1]
+    if a_hex[0]%2:
         y_offset -= game_dict['map_multiplier']/2
-    return x * game_dict['map_multiplier'] + game_dict['map_border'][0], y_offset
+    return a_hex[0] * game_dict['map_multiplier'] + game_dict['map_border'][0], y_offset
 
 def hex_legal(x, y, game_dict):
     """ Very basic check that the hex is legal. """
