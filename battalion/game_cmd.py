@@ -1,6 +1,7 @@
 """ cmd """
 
 class GameCmd():
+    "Holds game command info."
     def __init__(self, unit, e_unit, cmd, hexs):
         self.unit = unit
         self.e_unit = e_unit
@@ -8,7 +9,6 @@ class GameCmd():
         self.hexs = hexs
 
     def __str__(self):
-        if self.cmd == "ATTACK" or self.cmd == "MV":
-            return(f"{self.unit.name}: {self.cmd} {self.hexs}")
-        else:
-            return(f"{self.unit.name}: {self.cmd}")
+        if self.cmd in ("ATTACK", "MV"):
+            return f"{self.unit.name}: {self.cmd} {self.hexs}"
+        return f"{self.unit.name}: {self.cmd}"

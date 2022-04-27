@@ -1,5 +1,4 @@
 """ Utilities for hexl units. """
-from ast import literal_eval
 from hexl import get_hex_offset
 from pygame import draw #pylint: disable=E0401
 
@@ -29,6 +28,7 @@ def get_unit_by_name(name, game_dict):
     return None
 
 def attack_double_pulse_interpolation(interpolation):
+    """ Get interpolation value for a double pulse attack animation.  """
     if interpolation < 0.25:
         interpolation *= 2
     elif interpolation < 0.5:
@@ -49,20 +49,26 @@ def draw_units(screen, game_dict, time_delta):
                 if this_unit.status == "active":
                     if this_unit.animating:
                         game_cmd = this_unit.animation_cmd
-                        start_x_offset, start_y_offset = get_hex_offset(game_cmd.hexs[0], game_dict)
+                        start_x_offset, start_y_offset = \
+                            get_hex_offset(game_cmd.hexs[0], game_dict)
                         end_x_offset, end_y_offset = get_hex_offset(game_cmd.hexs[1], game_dict)
-                        interpolation = (this_unit.animation_duration - this_unit.animation_countdown) \
+                        interpolation = \
+                            (this_unit.animation_duration - this_unit.animation_countdown) \
                             / this_unit.animation_duration
                         assert 0.0 <= interpolation <= 1.0
                         if game_cmd.cmd == "MV":
-                            x_offset = start_x_offset + (end_x_offset - start_x_offset) * interpolation
-                            y_offset = start_y_offset + (end_y_offset - start_y_offset) * interpolation
+                            x_offset = start_x_offset + (end_x_offset - start_x_offset) \
+                                * interpolation
+                            y_offset = start_y_offset + (end_y_offset - start_y_offset) \
+                                * interpolation
                         else:
                             assert game_cmd.cmd == "ATTACK"
                             # 0->1 to 0->1->0->1->0 double thrust
                             interpolation = attack_double_pulse_interpolation(interpolation)
-                            x_offset = start_x_offset + (end_x_offset - start_x_offset) * interpolation
-                            y_offset = start_y_offset + (end_y_offset - start_y_offset) * interpolation
+                            x_offset = start_x_offset + (end_x_offset - start_x_offset) \
+                                * interpolation
+                            y_offset = start_y_offset + (end_y_offset - start_y_offset) \
+                                * interpolation
                         this_unit.animation_countdown -= time_delta
                         if this_unit.animation_countdown < 0:
                             this_unit.animation_countdown = 0

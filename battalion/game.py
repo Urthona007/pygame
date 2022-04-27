@@ -1,14 +1,13 @@
 """ game utility functions and class definitions """
+import json
+import shutil
+import sys
 from time import sleep
-from ast import literal_eval
 from random import randrange
 from game_cmd import GameCmd
-from unit import get_unit_by_name
 from game_ai import ai_evacuate, ai_circle, ai_prevent_evacuation
 from hexl import directions, hex_next_to_enemies
 from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
-import json
-import shutil
 
 def active_phases(game_dict):
     """ Are there any active phases? """
@@ -18,7 +17,8 @@ def active_phases(game_dict):
     return False
 
 def update_phase_gui(game_dict, active_phase):
-    with open("battalion/phase_theme_tmp.json", "w") as f:
+    """ Write a tmp file, then copy as actual theme. """
+    with open("battalion/phase_theme_tmp.json", "w", encoding="utf-8") as f:
         bright_green = "#00EE00"
         dull_green = "#55955e"
         bright_yellow = "#ffff80"
@@ -40,12 +40,12 @@ def update_phase_gui(game_dict, active_phase):
         f.write("\n}\n")
 
     # Extra debug, could be disabled.
-    with open("battalion/phase_theme_tmp.json", "rt") as f:
+    with open("battalion/phase_theme_tmp.json", "rt", encoding="utf-8") as f:
         try:
             theme_dict = json.load(f)
         except json.decoder.JSONDecodeError:
             print("JSON load failure for phase_theme_tmp.json.  Investigate please.")
-            exit(-1)
+            sys.exit(-1)
     game_dict["theme_lock"].acquire()
     shutil.copy("battalion/phase_theme_tmp.json", "battalion/phase_theme.json")
     game_dict["theme_lock"].release()
@@ -116,17 +116,20 @@ def evaluate_combat(player_num, game_dict):
                                     if adjx == d_unit.x and adjy == d_unit.y:
                                         # Adjacent unit, this means combat
                                         if a_unit.strength > d_unit.strength:
-                                            combat_cmd = GameCmd(a_unit, d_unit, "ATTACK", [(a_unit.x, a_unit.y), (d_unit.x, d_unit.y)])
+                                            combat_cmd = GameCmd(a_unit, d_unit, "ATTACK", \
+                                                [(a_unit.x, a_unit.y), (d_unit.x, d_unit.y)])
                                         else:
-                                            combat_cmd = GameCmd(a_unit, None, "RETREAT", [(a_unit.x, a_unit.y),])
+                                            combat_cmd = GameCmd(a_unit, None, "RETREAT", \
+                                                [(a_unit.x, a_unit.y),])
                                         process_command(a_unit, combat_cmd, game_dict)
 
 def get_active_phase_idx(active_phase, game_dict):
+    """ Get the active phase's index. """
     phase_list = game_dict["game_phases"]
     for idx, phase in enumerate(phase_list):
         if phase[0] == active_phase:
             return idx
-    assert(True)
+    assert False
 
 def execute_phase(game_dict, active_phase):
     """ Basic game operation: Execute the input active phase.  """

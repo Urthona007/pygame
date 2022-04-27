@@ -1,12 +1,12 @@
 """ Battalion Main """
-from threading import Thread
+from threading import Thread, Lock
 from time import sleep
 from game import Player, Battalion, play_game_threaded_function
 from unit import Unit, draw_units
 from hexl import draw_hexs
-import pygame
 import pygame_gui
-import threading
+import pygame
+
 
 def draw_map(screen, a_game_dict):
     """ Draw game map. """
@@ -74,22 +74,21 @@ def main():
     # Initialize the gui.
     game_dict["update_gui"] = False
     gui_manager = pygame_gui.UIManager((game_dict['display_width'], game_dict['display_height']), \
-        enable_live_theme_updates=False) # Note: enable live theme updates doesn't seem to work and I instead do it manually
+        enable_live_theme_updates=False) # Note: enable live theme updates doesn't seem to work
+                                         # and I instead do it manually
     gui_manager.get_theme().load_theme('battalion/phase_theme.json')
-    game_dict["turn_label"] = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 2), (98, 20)),
-                                             text='Turn 1',
-                                             manager=gui_manager)
+    game_dict["turn_label"] = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 2), \
+        (98, 20)), text='Turn 1', manager=gui_manager)
 
     pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2,30), (98, 20)),
                                             text = "Phases:",
                                             manager=gui_manager)
     phase_labels = []
     for idx, phas in enumerate(game_dict["game_phases"]):
-        phase_labels.append(pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 52+22*idx), (98, 20)),
-                                             text=phas[0],
-                                             manager=gui_manager,
-                                             object_id=pygame_gui.core.ObjectID(class_id='@batt_phase_labels',
-                                                                                object_id=f"#phase_{idx}")))
+        phase_labels.append(pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 52+22*idx), \
+            (98, 20)), text=phas[0], manager=gui_manager, \
+            object_id=pygame_gui.core.ObjectID(class_id='@batt_phase_labels', \
+                object_id=f"#phase_{idx}")))
     clock = pygame.time.Clock()
 
     pygame.display.set_caption(game_dict['name']) # NOTE: this is not working.  I don't know why.
@@ -107,7 +106,7 @@ def main():
     game_dict["update_screen_req"] = 1
     game_dict["update_screen"] = 0
 
-    game_dict["theme_lock"] = threading.Lock()
+    game_dict["theme_lock"] = Lock()
 
     # Main game loop.  Keep looping until someone wins or the game is no longer running
     while (not player_0_victory_condition(game_dict)) and \
@@ -125,7 +124,8 @@ def main():
             gui_manager.process_events(e)
 
         # Redraw the screen as necessary
-        if game_dict["update_screen_req"] > game_dict["update_screen"] or gui_manager.get_theme().check_need_to_reload() or game_dict["update_gui"]:
+        if game_dict["update_screen_req"] > game_dict["update_screen"] or \
+            gui_manager.get_theme().check_need_to_reload() or game_dict["update_gui"]:
             # Redraw screen
             if game_dict["update_screen_req"] > game_dict["update_screen"]:
                 game_dict["update_screen"] += 1

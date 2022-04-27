@@ -1,7 +1,7 @@
 """ Functions for AI """
-from game_cmd import GameCmd
 from random import randrange
 import queue
+from game_cmd import GameCmd
 from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
 from hexl import directions
 import numpy as np
