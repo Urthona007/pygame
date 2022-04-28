@@ -24,7 +24,7 @@ def get_unit_by_name(name, game_dict):
             for this_unit in battalion.units:
                 if this_unit.name == name:
                     return this_unit
-    print(f"ERROR: unit {name} not found?!")
+    game_dict["logger"].error(f"unit {name} not found?!")
     return None
 
 def attack_double_pulse_interpolation(interpolation):
@@ -74,7 +74,7 @@ def draw_units(screen, game_dict, time_delta):
                             this_unit.animation_countdown = 0
                             this_unit.animating = False
                             if game_cmd.cmd == "ATTACK":
-                                print(f"{game_cmd.e_unit.name} destroyed!")
+                                game_dict["logger"].info(f"{game_cmd.e_unit.name} destroyed!")
                                 game_cmd.e_unit.x = game_cmd.e_unit.y = -1
                                 game_cmd.e_unit.status = "destroyed"
                         animating = True

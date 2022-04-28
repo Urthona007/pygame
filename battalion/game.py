@@ -44,7 +44,7 @@ def update_phase_gui(game_dict, active_phase):
         try:
             theme_dict = json.load(f)
         except json.decoder.JSONDecodeError:
-            print("JSON load failure for phase_theme_tmp.json.  Investigate please.")
+            game_dict["logger"].error("JSON load failure for phase_theme_tmp.json.  Investigate please.")
             sys.exit(-1)
     game_dict["theme_lock"].acquire()
     shutil.copy("battalion/phase_theme_tmp.json", "battalion/phase_theme.json")
@@ -61,7 +61,7 @@ def reset_phases(game_dict):
 
 def process_command(unit, game_cmd, game_dict):
     """ Process a text-based unit command from a player."""
-    print(f"    {game_cmd}")
+    game_dict["logger"].info(f"    {game_cmd}")
     if game_cmd.cmd == "EVACUATE":
         unit.status = "off_board"
     elif game_cmd.cmd == "PASS":
@@ -87,7 +87,7 @@ def process_command(unit, game_cmd, game_dict):
                 candidate_list.append((adjx, adjy))
         if len(candidate_list) == 0:
             # Nowhere to retreat.
-            print(f"{unit.name} has nowhere to retreat and is destroyed!")
+            game_dict["logger"].info(f"{unit.name} has nowhere to retreat and is destroyed!")
             unit.x = -1
             unit.y = -1
             unit.status = "destroyed"
@@ -164,7 +164,7 @@ def next_phase(game_dict):
             candidate_phases.append(phase)
     active_phase = candidate_phases[randrange(len(candidate_phases))]
     update_phase_gui(game_dict, active_phase)
-    print(f"  Phase {active_phase[0]}")
+    game_dict["logger"].info(f"  Phase {active_phase[0]}")
     execute_phase(game_dict, active_phase[0])
     for i, phase in enumerate(phase_list):
         if phase[0] == active_phase[0]:
@@ -177,13 +177,13 @@ def play_game_threaded_function(game_dict, max_turns):
     reset_phases(game_dict)
     while game_dict["game_running"]:
         turn = game_dict["game_turn"]
-        print(f"Turn {turn}")
+        game_dict["logger"].info(f"Turn {turn}")
         while game_dict["game_running"] and active_phases(game_dict):
             next_phase(game_dict)
         reset_phases(game_dict)
         game_dict["game_turn"] += 1
     if game_dict["game_turn"] == max_turns:
-        print(f"\nGAME OVER: MAX TURNS {max_turns} reached.")
+        game_dict["logger"].info(f"\nGAME OVER: MAX TURNS {max_turns} reached.")
     game_dict["game_running"] = False
 
 class Battalion():

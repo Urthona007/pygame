@@ -1,6 +1,7 @@
 """ Battalion Main """
 from threading import Thread, Lock
 from time import sleep
+import logging
 from game import Player, Battalion, play_game_threaded_function
 from unit import Unit, draw_units
 from hexl import draw_hexs
@@ -14,16 +15,30 @@ def draw_map(screen, a_game_dict):
 
 def main():
     """ Start the main code """
+    game_dict = {}
+    # create logger
+    logging.captureWarnings(True)
+    game_dict["logger"] = logging.getLogger(__name__)
+    game_dict["logger"].setLevel(logging.DEBUG)
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    game_dict["logger"].addHandler(ch)
+    # Create log file handler and set level to debug
+    fh = logging.FileHandler(r'battalion_log.txt', mode='w')
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
+    game_dict["logger"].addHandler(fh)
     pygame.init()
 
     # Game parameters and globals are managed in "game_dict".
     # 1) Initialize general settings first
-    game_dict = {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
+    game_dict.update( {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
             'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 50, \
             'map_border' : (100, 8), 'unit_width': 32, 'unit_x_offset': 18, 'unit_y_offset': 34, \
             "game_turn": 1, \
             "game_phases":[("Red Combat", False), ("Blu Combat", False)], "game_running": True \
-            }
+            } )
 
     # 2) Initialize specific parameters.  Right now we only have one scenario, Hounds.
     scenario = "Hounds" # pylint: disable-msg=C0103
@@ -36,14 +51,14 @@ def main():
                     if unit.status in ("active", "off_board"):
                         return None
             game_dict["game_running"] = False
-            print("Red Victory, all Blu forces eliminated!")
+            game_dict["logger"].info("Red Victory, all Blu forces eliminated!")
             return "Red Victory, all Blu forces eliminated!"
 
         def player_1_victory_condition(game_dict):
             """ Player 1 Scenario Hound victory conditions """
             if game_dict["game_turn"] == 10:
                 game_dict["game_running"] = False
-                print("Blu Victory, Turn 10 Blufor still alive.")
+                game_dict["logger"].info("Blu Victory, Turn 10 Blufor still alive.")
                 return "Blu Victory, Turn 10 Blufor still alive."
             for battalion in game_dict["players"][1].battalion:
                 for unit in battalion.units:
@@ -51,7 +66,7 @@ def main():
                         return None
                     assert unit.status == "off_board"
             game_dict["game_running"] = False
-            print("Blu Victory, all Blu forces evacuated!")
+            game_dict["logger"].info("Blu Victory, all Blu forces evacuated!")
             return "Blu Victory, all Blu forces evacuated!"
 
         game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
@@ -119,7 +134,7 @@ def main():
         for e in pygame.event.get():
             # print(event)
             if e.type == pygame.QUIT:
-                print("GAME ABORTED BY USER.")
+                game_dict["logger"].warn("GAME ABORTED BY USER.")
                 game_dict["game_running"] = False
             gui_manager.process_events(e)
 
@@ -157,8 +172,6 @@ def main():
                     gamemaster_thread = Thread( \
                         target = play_game_threaded_function, args = (game_dict, 10))
                     gamemaster_thread.start()
-                    #    thread.join()
-                    #    print("thread finished...exiting")
 
     # We're exiting, and the gamemaster thread should be exiting too...
     if gamemaster_thread:
