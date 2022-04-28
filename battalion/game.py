@@ -44,7 +44,7 @@ def update_phase_gui(game_dict, active_phase):
         try:
             theme_dict = json.load(f)
         except json.decoder.JSONDecodeError:
-            game_dict["logger"].error("JSON load failure for phase_theme_tmp.json.  Investigate please.")
+            game_dict["logger"].error("JSON load failure for phase_theme_tmp.json.  Investigate.")
             sys.exit(-1)
     game_dict["theme_lock"].acquire()
     shutil.copy("battalion/phase_theme_tmp.json", "battalion/phase_theme.json")
