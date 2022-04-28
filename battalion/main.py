@@ -8,18 +8,49 @@ from hexl import draw_hexs
 import pygame_gui
 import pygame
 
-
 def draw_map(screen, a_game_dict):
     """ Draw game map. """
     draw_hexs(screen, a_game_dict)
 
-def main():
-    """ Start the main code """
-    game_dict = {}
-    # create logger
+class MyFormatter(logging.Formatter):
+    """ Logging formatter subclass that formats log msgs differently based on msg level """
+
+    err_fmt  = "ERROR: %(msg)s"
+    warn_fmt = "WARNING: %(msg)s"
+    dbg_fmt  = "DBG: %(module)s: %(lineno)d: %(msg)s"
+    info_fmt = "%(msg)s"
+
+    def __init__(self):
+        super().__init__(fmt="%(levelno)d: %(msg)s", datefmt=None, style='%')
+
+    def format(self, record):
+        """ Based on the msg level, format log msgs differently. """
+        format_orig = self._style._fmt # pylint: disable=W0212
+
+        # Replace the original format with one customized by logging level
+        if record.levelno == logging.DEBUG:
+            self._style._fmt = MyFormatter.dbg_fmt # pylint: disable=W0212
+        elif record.levelno == logging.INFO:
+            self._style._fmt = MyFormatter.info_fmt # pylint: disable=W0212
+        elif record.levelno == logging.ERROR:
+            self._style._fmt = MyFormatter.err_fmt # pylint: disable=W0212
+        elif record.levelno == logging.WARN:
+            self._style._fmt = MyFormatter.warn_fmt # pylint: disable=W0212
+
+        # Call the original formatter class to do the grunt work
+        result = logging.Formatter.format(self, record)
+
+        # Restore the original format configured by the user
+        self._style._fmt = format_orig # pylint: disable=W0212
+
+        return result
+
+def create_game_logger(game_dict):
+    """ Log messages to the screen and also to a log file. """
     logging.captureWarnings(True)
     game_dict["logger"] = logging.getLogger(__name__)
     game_dict["logger"].setLevel(logging.DEBUG)
+
     # create console handler and set level to debug
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
@@ -27,11 +58,22 @@ def main():
     # Create log file handler and set level to debug
     fh = logging.FileHandler(r'battalion_log.txt', mode='w')
     fh.setLevel(logging.DEBUG)
-    fh.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
+    fmt = MyFormatter()
+    fh.setFormatter(fmt)
+    # fh.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
     game_dict["logger"].addHandler(fh)
+
+def main():
+    """ Start the main code """
+    # Create game_dict which holds all game parameters and global cross-thread data and signals.
+    game_dict = {}
+
+    # create logger
+    create_game_logger(game_dict)
+
+    # init pygame
     pygame.init()
 
-    # Game parameters and globals are managed in "game_dict".
     # 1) Initialize general settings first
     game_dict.update( {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
             'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 50, \
