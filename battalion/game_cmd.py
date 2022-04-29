@@ -10,5 +10,5 @@ class GameCmd():
 
     def __str__(self):
         if self.cmd in ("ATTACK", "MV"):
-            return f"{self.unit.name}: {self.cmd} {self.hexs}"
-        return f"{self.unit.name}: {self.cmd}"
+            return f"{self.cmd} {self.unit.get_name()}\" {self.hexs}"
+        return f"{self.cmd} {self.unit.get_name()}"

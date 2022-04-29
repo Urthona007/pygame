@@ -56,7 +56,7 @@ def create_game_logger(game_dict):
     ch.setLevel(logging.DEBUG)
     game_dict["logger"].addHandler(ch)
     # Create log file handler and set level to debug
-    fh = logging.FileHandler(r'battalion_log.txt', mode='w')
+    fh = logging.FileHandler(r'battalion_log.txt') #, mode='w')
     fh.setLevel(logging.DEBUG)
     fmt = MyFormatter()
     fh.setFormatter(fmt)
@@ -66,24 +66,17 @@ def create_game_logger(game_dict):
 def main():
     """ Start the main code """
     # Create game_dict which holds all game parameters and global cross-thread data and signals.
-    game_dict = {}
-
-    # create logger
-    create_game_logger(game_dict)
-
-    # init pygame
-    pygame.init()
-
     # 1) Initialize general settings first
-    game_dict.update( {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
+    game_dict = {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
             'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 50, \
             'map_border' : (100, 8), 'unit_width': 32, 'unit_x_offset': 18, 'unit_y_offset': 34, \
             "game_turn": 1, \
             "game_phases":[("Red Combat", False), ("Blu Combat", False)], "game_running": True \
-            } )
+            }
 
     # 2) Initialize specific parameters.  Right now we only have one scenario, Hounds.
     scenario = "Hounds" # pylint: disable-msg=C0103
+    game_dict["scenario"] = scenario
     if scenario == "Hounds":
         # Define the two players' victory conditions
         def player_0_victory_condition(game_dict):
@@ -111,6 +104,9 @@ def main():
             game_dict["logger"].info("Blu Victory, all Blu forces evacuated!")
             return "Blu Victory, all Blu forces evacuated!"
 
+        game_dict["evacuation_hex"] = (0,4)
+        with open ("battalion_log.txt", mode='w') as f:
+            f.write(f"{game_dict.__str__()}\n")
         game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
         game_dict["players"][0].battalion.append(Battalion(0, "Rommel"))
         game_dict["players"][0].battalion[0].strategy = "Seek and Destroy"
@@ -120,7 +116,18 @@ def main():
         game_dict["players"][1].battalion[0].strategy = "Evacuate"
         game_dict["players"][1].battalion[0].units.append( \
             Unit("militia", "Resistance Fighters", 1, 7, 5, 1))
-        game_dict["evacuation_hex"] = (0,4)
+
+        with open ("battalion_log.txt", mode = 'a') as f:
+            for player in game_dict["players"]:
+                player.write(f)
+
+
+
+    # create logger
+    create_game_logger(game_dict)
+
+    # init pygame
+    pygame.init()
 
     # 3) Initialize derived game parameters.
     # Add in all movement phases based on how many battalions are specified.

@@ -9,6 +9,30 @@ from game_ai import ai_evacuate, ai_circle, ai_prevent_evacuation
 from hexl import directions, hex_next_to_enemies
 from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
 
+class Battalion():
+    """ Battalions consist of one or more units.  Battalions have unique movmement phases.  """
+    def __init__(self, idx, name):
+        self.idx = idx
+        self.name = name
+        self.units = []
+        self.strategy = "uninitialized"
+    def write(self, f):
+        f.write(f"  {self.idx} {self.name} {self.strategy}\n")
+        for u in self.units:
+            u.write(f)
+
+class Player():
+    """ Players can be Human or AI """
+    def __init__(self, idx, name):
+        self.idx = idx
+        self.name = name
+        self.battalion = []
+
+    def write(self, f):
+        f.write(f"{self.name}\n")
+        for bat in self.battalion:
+            bat.write(f)
+
 def active_phases(game_dict):
     """ Are there any active phases? """
     for phase in game_dict["game_phases"]:
@@ -87,7 +111,7 @@ def process_command(unit, game_cmd, game_dict):
                 candidate_list.append((adjx, adjy))
         if len(candidate_list) == 0:
             # Nowhere to retreat.
-            game_dict["logger"].info(f"{unit.name} has nowhere to retreat and is destroyed!")
+            game_dict["logger"].info(f"{unit.get_name()} has nowhere to retreat and is destroyed!")
             unit.x = -1
             unit.y = -1
             unit.status = "destroyed"
@@ -186,17 +210,3 @@ def play_game_threaded_function(game_dict, max_turns):
         game_dict["logger"].info(f"\nGAME OVER: MAX TURNS {max_turns} reached.")
     game_dict["game_running"] = False
 
-class Battalion():
-    """ Battalions consist of one or more units.  Battalions have unique movmement phases.  """
-    def __init__(self, idx, name):
-        self.idx = idx
-        self.name = name
-        self.units = []
-        self.strategy = "uninitialized"
-
-class Player():
-    """ Players can be Human or AI """
-    def __init__(self, idx, name):
-        self.idx = idx
-        self.name = name
-        self.battalion = []

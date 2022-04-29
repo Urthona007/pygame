@@ -17,6 +17,14 @@ class Unit():
         self.animation_countdown = 2 # seconds
         self.animation_duration = 2 # seconds
 
+    def write(self, f):
+        f.write(f"    {self.type} {self.get_name()} {self.strength} {self.x} {self.y}\n")
+
+    def get_name(self):
+        if " " in self.name:
+            return f"\"{self.name}"
+        return {self.name}
+
 def get_unit_by_name(name, game_dict):
     """ Get unit by name. """
     for player in game_dict["players"]:
