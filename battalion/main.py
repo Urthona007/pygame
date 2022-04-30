@@ -63,6 +63,42 @@ def create_game_logger(game_dict):
     # fh.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
     game_dict["logger"].addHandler(fh)
 
+def game_setup(game_dict):
+
+    # init pygame
+    pygame.init()
+
+    # 3) Initialize derived game parameters.
+    # Add in all movement phases based on how many battalions are specified.
+    for player in game_dict["players"]:
+        for battalion in player.battalion:
+            game_dict["game_phases"].append((f"{battalion.name}", False))
+
+    # Initialize the gui.
+    game_dict["update_gui"] = False
+    gui_manager = pygame_gui.UIManager((game_dict['display_width'], game_dict['display_height']), \
+        enable_live_theme_updates=False) # Note: enable live theme updates doesn't seem to work
+                                         # and I instead do it manually
+    gui_manager.get_theme().load_theme('battalion/phase_theme.json')
+    game_dict["turn_label"] = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 2), \
+        (98, 20)), text='Turn 1', manager=gui_manager)
+
+    pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2,30), (98, 20)),
+                                            text = "Phases:",
+                                            manager=gui_manager)
+    phase_labels = []
+    for idx, phas in enumerate(game_dict["game_phases"]):
+        phase_labels.append(pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 52+22*idx), \
+            (98, 20)), text=phas[0], manager=gui_manager, \
+            object_id=pygame_gui.core.ObjectID(class_id='@batt_phase_labels', \
+                object_id=f"#phase_{idx}")))
+    clock = pygame.time.Clock()
+
+    pygame.display.set_caption(game_dict['name']) # NOTE: this is not working.  I don't know why.
+    game_screen = pygame.display.set_mode((game_dict['display_width'], game_dict['display_height']))
+
+    return clock, gui_manager, game_screen, phase_labels
+
 def main():
     """ Start the main code """
     # Create game_dict which holds all game parameters and global cross-thread data and signals.
@@ -121,42 +157,10 @@ def main():
             for player in game_dict["players"]:
                 player.write(f)
 
-
-
     # create logger
     create_game_logger(game_dict)
 
-    # init pygame
-    pygame.init()
-
-    # 3) Initialize derived game parameters.
-    # Add in all movement phases based on how many battalions are specified.
-    for player in game_dict["players"]:
-        for battalion in player.battalion:
-            game_dict["game_phases"].append((f"{battalion.name}", False))
-
-    # Initialize the gui.
-    game_dict["update_gui"] = False
-    gui_manager = pygame_gui.UIManager((game_dict['display_width'], game_dict['display_height']), \
-        enable_live_theme_updates=False) # Note: enable live theme updates doesn't seem to work
-                                         # and I instead do it manually
-    gui_manager.get_theme().load_theme('battalion/phase_theme.json')
-    game_dict["turn_label"] = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 2), \
-        (98, 20)), text='Turn 1', manager=gui_manager)
-
-    pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2,30), (98, 20)),
-                                            text = "Phases:",
-                                            manager=gui_manager)
-    phase_labels = []
-    for idx, phas in enumerate(game_dict["game_phases"]):
-        phase_labels.append(pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 52+22*idx), \
-            (98, 20)), text=phas[0], manager=gui_manager, \
-            object_id=pygame_gui.core.ObjectID(class_id='@batt_phase_labels', \
-                object_id=f"#phase_{idx}")))
-    clock = pygame.time.Clock()
-
-    pygame.display.set_caption(game_dict['name']) # NOTE: this is not working.  I don't know why.
-    game_screen = pygame.display.set_mode((game_dict['display_width'], game_dict['display_height']))
+    clock, gui_manager, game_screen, phase_labels = game_setup(game_dict)
 
     # OK!  Let's get the game loops started!
     #

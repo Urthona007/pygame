@@ -22,7 +22,7 @@ class Unit():
 
     def get_name(self):
         if " " in self.name:
-            return f"\"{self.name}"
+            return f"\"{self.name}\""
         return {self.name}
 
 def get_unit_by_name(name, game_dict):
