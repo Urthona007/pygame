@@ -1,6 +1,7 @@
 """ game utility functions and class definitions """
 import json
 import shutil
+import subprocess
 import sys
 from time import sleep
 from random import randrange
@@ -71,7 +72,8 @@ def update_phase_gui(game_dict, active_phase):
             game_dict["logger"].error("JSON load failure for phase_theme_tmp.json.  Investigate.")
             sys.exit(-1)
     game_dict["theme_lock"].acquire()
-    shutil.copy("battalion/phase_theme_tmp.json", "battalion/phase_theme.json")
+    # shutil.copy("battalion/phase_theme_tmp.json", "battalion/phase_theme.json") # This may return before finished?
+    subprocess.call('mv battalion/phase_theme_tmp.json battalion/phase_theme.json', shell=True)
     game_dict["theme_lock"].release()
 
     game_dict["update_gui"] = True
@@ -110,7 +112,7 @@ def process_command(unit, game_cmd, game_dict):
                 not hex_next_to_enemies(adjx, adjy, 1-unit.player, game_dict):
                 candidate_list.append((adjx, adjy))
         if len(candidate_list) == 0:
-            # Nowhere to retreat.
+            # Nowhere to retreat. TODO, handle nowhere to retreat better.
             game_dict["logger"].info(f"{unit.get_name()} has nowhere to retreat and is destroyed!")
             unit.x = -1
             unit.y = -1
@@ -188,7 +190,13 @@ def next_phase(game_dict):
             candidate_phases.append(phase)
     active_phase = candidate_phases[randrange(len(candidate_phases))]
     update_phase_gui(game_dict, active_phase)
-    game_dict["logger"].info(f"  Phase {active_phase[0]}")
+    if " " in active_phase[0]:
+        game_dict["logger"].info(f"  Phase \"{active_phase[0]}\"")
+    else:
+        game_dict["logger"].info(f"  Phase {active_phase[0]}")
+
+    while game_dict["update_gui"]:
+        sleep(0.1)
     execute_phase(game_dict, active_phase[0])
     for i, phase in enumerate(phase_list):
         if phase[0] == active_phase[0]:
@@ -206,6 +214,7 @@ def play_game_threaded_function(game_dict, max_turns):
             next_phase(game_dict)
         reset_phases(game_dict)
         game_dict["game_turn"] += 1
+        sleep(2)
     if game_dict["game_turn"] == max_turns:
         game_dict["logger"].info(f"\nGAME OVER: MAX TURNS {max_turns} reached.")
     game_dict["game_running"] = False
