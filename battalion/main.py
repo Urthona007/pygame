@@ -2,7 +2,7 @@
 from threading import Thread, Lock
 from time import sleep
 import logging
-from game import Player, Battalion, play_game_threaded_function
+from game import Player, Battalion, play_game_threaded_function, reset_phases
 from unit import Unit, draw_units
 from hexl import draw_hexs
 import pygame_gui
@@ -73,6 +73,7 @@ def game_setup(game_dict):
     for player in game_dict["players"]:
         for battalion in player.battalion:
             game_dict["game_phases"].append((f"{battalion.name}", False))
+    reset_phases(game_dict)
 
     # Initialize the gui.
     game_dict["update_gui"] = False
@@ -122,23 +123,23 @@ def main():
                     if unit.status in ("active", "off_board"):
                         return None
             game_dict["game_running"] = False
-            game_dict["logger"].info("Red Victory, all Blu forces eliminated!")
-            return "Red Victory, all Blu forces eliminated!"
+            game_dict["logger"].info("Victory Red \"All Blu forces eliminated!\"")
+            return "Victory Red: All Blu forces eliminated!"
 
         def player_1_victory_condition(game_dict):
             """ Player 1 Scenario Hound victory conditions """
             if game_dict["game_turn"] == 10:
                 game_dict["game_running"] = False
-                game_dict["logger"].info("Blu Victory, Turn 10 Blufor still alive.")
-                return "Blu Victory, Turn 10 Blufor still alive."
+                game_dict["logger"].info("Victory Blu \"Turn 10 Blufor still alive.\"")
+                return "Victory Blu: Turn 10 Blufor still alive."
             for battalion in game_dict["players"][1].battalion:
                 for unit in battalion.units:
                     if unit.status == "active":
                         return None
                     assert unit.status == "off_board"
             game_dict["game_running"] = False
-            game_dict["logger"].info("Blu Victory, all Blu forces evacuated!")
-            return "Blu Victory, all Blu forces evacuated!"
+            game_dict["logger"].info("Victory Blu \"All Blu forces evacuated!\"")
+            return "Victory Blu: All Blu forces evacuated!"
 
         game_dict["evacuation_hex"] = (0,4)
         with open ("battalion_log.txt", mode='w') as f:
@@ -159,8 +160,10 @@ def main():
 
     # create logger
     create_game_logger(game_dict)
-
+    game_dict["theme_lock"] = Lock()
+    # game_dict["theme_lock"].acquire()
     clock, gui_manager, game_screen, phase_labels = game_setup(game_dict)
+    # game_dict["theme_lock"].release()
 
     # OK!  Let's get the game loops started!
     #
@@ -173,8 +176,6 @@ def main():
     game_dict["game_running"] = True
     game_dict["update_screen_req"] = 1
     game_dict["update_screen"] = 0
-
-    game_dict["theme_lock"] = Lock()
 
     # Main game loop.  Keep looping until someone wins or the game is no longer running
     while (not player_0_victory_condition(game_dict)) and \
@@ -209,10 +210,11 @@ def main():
             game_dict["turn_label"].set_text(f"Turn {this_turn}")
             for lb in phase_labels:
                 lb.rebuild_from_changed_theme_data()
-            game_dict["update_gui"] = False
+
             gui_manager.update(time_delta)
             gui_manager.draw_ui(game_screen)
             game_dict["theme_lock"].release()
+            game_dict["update_gui"] = False
 
             # Update Dispay overall
             pygame.display.update()
