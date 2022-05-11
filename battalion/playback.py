@@ -3,44 +3,57 @@ import ast
 import shlex
 from threading import Lock, Thread
 from time import sleep
-
-import pygame
 from game import Player, Battalion, reset_phases, update_phase_gui
 from unit import Unit, draw_units, get_unit_by_name
-from main import draw_map, game_setup
+from main import create_game_logger, draw_map, game_setup
+import pygame
+
 
 def playback_threaded_function(game_dict, f):
-    """ This is the function that starts the playback manager thread.  This thread is run in parallel
-        to the main (display) thread. """
+    """ This is the function that starts the playback manager thread.  This thread is run in
+        parallel to the main (display) thread. """
+    first_time = True
     while game_dict["game_running"]:
-        sleep(1)
-        log_string = f.readline().rstrip('\n')
-        if log_string == "":
-            game_dict["game_running"] = False
-            print("End of log reached.  Ending game.")
-        else:
-            sstring = shlex.split(log_string)
-            print(sstring)
-                    # game_dict["game_turn"] += 1
-            if sstring[0] == "Turn":
-                game_dict["game_turn"] = int(sstring[1])
-                reset_phases(game_dict)
-                game_dict["update_gui"] = True
-            elif sstring[0] == "Phase":
-                active_phase = (sstring[1], False)
-                update_phase_gui(game_dict, active_phase)
-                for i, phase in enumerate(game_dict["game_phases"]):
-                    if phase[0] == active_phase[0]:
-                        game_dict["game_phases"][i] = (active_phase[0], True)
-            elif sstring[0] == "MV":
-                # Converting string to list
-                mv_hexs = ast.literal_eval(sstring[2])
-                mv_unit = get_unit_by_name(sstring[1], game_dict)
-                mv_unit.x = mv_hexs[-1][0]
-                mv_unit.y = mv_hexs[-1][1]
+        if game_dict["key_request"] == "automatic" or game_dict["key_request"] == "next phase" or \
+            game_dict["key_request"] == "next turn" or first_time:
+            first_time = False
+            if game_dict["key_request"] == "automatic":
+                sleep(1)
+            log_string = f.readline().rstrip('\n')
+            if log_string == "":
+                if game_dict["key_request"] == "automatic":
+                    game_dict["game_running"] = False
+                    print("End of log reached.  Ending game.")
+                else:
+                    print("End of log reached.  Cannot go further forward.")
+                    game_dict["key_request"] = ""
+            else:
+                sstring = shlex.split(log_string)
+                print(sstring)
+                if sstring[0] == "Turn":
+                    game_dict["game_turn"] = int(sstring[1])
+                    reset_phases(game_dict)
+                    game_dict["update_gui"] = True
+                elif sstring[0] == "Phase":
+                    active_phase = (sstring[1], False)
+                    update_phase_gui(game_dict, active_phase)
+                    for i, phase in enumerate(game_dict["game_phases"]):
+                        if phase[0] == active_phase[0]:
+                            game_dict["game_phases"][i] = (active_phase[0], True)
+                elif sstring[0] == "MV":
+                    # Converting string to list
+                    mv_hexs = ast.literal_eval(sstring[2])
+                    mv_unit = get_unit_by_name(sstring[1], game_dict)
+                    mv_unit.hex = mv_hexs[-1]
+            if game_dict["key_request"] == "next phase" or \
+                (game_dict["key_request"] == "next turn" and sstring[0] == "Turn"):
+                game_dict["key_request"] = ""
 
-def main():
-    with open("battalion_log.txt", 'r') as f:
+def playback_main(logname):
+    """ Main playback function."""
+    # The entire playback is performed with the logfile open
+    with open(logname, 'r') as f:
+        # 1) Read in the header and setup basic information
         game_dict = ast.literal_eval(f.readline().rstrip('n')) # read in static first line
 
         game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
@@ -50,27 +63,34 @@ def main():
             game_dict["players"][i].battalion.append(Battalion(int(nextstrs[0]), nextstrs[1]))
             game_dict["players"][i].battalion[0].strategy = " ".join(nextstrs[2:])
             unitstr = shlex.split(f.readline().rstrip('n'))
+            unitstr[3] += unitstr[4]
+            print(unitstr)
             game_dict["players"][i].battalion[0].units.append( \
-                    Unit(unitstr[0], unitstr[1], int(unitstr[2]), int(unitstr[3]), int(unitstr[4]), \
+                    Unit(unitstr[0], unitstr[1], int(unitstr[2]), ast.literal_eval(unitstr[3]), \
                         game_dict["players"][i]))
             # print(game_dict["players"][i].battalion[0].units[0])
 
+        # 2) Setup the game very similar to the main game
+        # create logger
+        create_game_logger(game_dict, logname, True)
         game_dict["theme_lock"] = Lock()
         clock, gui_manager, game_screen, phase_labels = game_setup(game_dict)
-        # OK!  Let's get the game loops started!
+
+        # 3) OK!  Let's get the game loops started!
         #
         # Note that this program uses two threads.  This is the main (display) thread.  Any display
-        # graphs or gui changes should be effected in this thread.  The first time through it launches
-        # the game manager thread.  Both threads use game_dict to communicate information back and forth
-        # between the threads.  Any game_dict variable should only be written by one of the two threads.
+        # graphs or gui changes should be effected in this thread.  The first time through it
+        # launches the game manager thread.  Both threads use game_dict to communicate information
+        # back and forth between the threads.  Any game_dict variable should only be written by one
+        # of the two threads.
         first_time = True
         gamemaster_thread = None
         game_dict["game_running"] = True
         game_dict["update_screen_req"] = 1
         game_dict["update_screen"] = 0
+        game_dict["key_request"] = ""
 
-
-        # Main game loop.  Keep looping until someone wins or the game is no longer running
+        # Main game (playback in this case) loop.  Keep looping until user kills the playback.
         while game_dict["game_running"]:
 
             time_delta = clock.tick(60)/1000.0
@@ -81,6 +101,22 @@ def main():
                 if e.type == pygame.QUIT:
                     game_dict["logger"].warn("GAME ABORTED BY USER.")
                     game_dict["game_running"] = False
+                if e.type == pygame.KEYDOWN :
+                    if e.key == pygame.K_p:
+                        game_dict["key_request"] = "next phase"
+                    elif e.key == pygame.K_o:
+                        game_dict["key_request"] = "prev phase"
+                    elif e.key == pygame.K_t:
+                        game_dict["key_request"] = "next turn"
+                    elif e.key == pygame.K_r:
+                        game_dict["key_request"] = "prev turn"
+                    elif e.key == pygame.K_a:
+                        if game_dict["key_request"] == "automatic":
+                            game_dict["key_request"] = ""
+                        else:
+                            game_dict["key_request"] = "automatic"
+                    elif e.key == pygame.K_q:
+                        game_dict["game_running"] = False
                 gui_manager.process_events(e)
 
             # Redraw the screen as necessary
@@ -126,4 +162,4 @@ def main():
     pygame.quit()
 
 if __name__ == '__main__':
-    main()
+    playback_main("battalion_log.txt")
