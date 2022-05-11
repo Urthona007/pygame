@@ -1,4 +1,5 @@
 """ Manage hexs """
+from random import randrange
 from pygame import draw #pylint: disable=E0401
 
 directions = ("N", "NE", "SE", "S", "SW", "NW")
@@ -31,59 +32,83 @@ def get_hex_offset(a_hex, game_dict):
         y_offset -= game_dict['map_multiplier']/2
     return a_hex[0] * game_dict['map_multiplier'] + game_dict['map_border'][0], y_offset
 
-def hex_legal(x, y, game_dict):
+def hex_legal(hexx, game_dict):
     """ Very basic check that the hex is legal. """
     # pylint: disable=R0916
-    if 0 <= x < game_dict["map_width"] and y >= 0 and \
-        ((x&2 and y < game_dict["map_height"]) or ((not x&2) and y < game_dict["map_height"]-1)):
+    if 0 <= hexx[0] < game_dict["map_width"] and hexx[1] >= 0 and \
+        ((hexx[0]%2 and hexx[1] < game_dict["map_height"]) or \
+        ((not hexx[0]%2) and hexx[1] < game_dict["map_height"]-1)):
         return True
     return False
 
-def get_hex_coords_from_direction(direction, x, y, game_dict): # pylint: disable=R0911,R0912
-    """ given a hex and direction, return that hex's address is legal. """
-    if direction == "N":
-        if hex_legal(x, y-1, game_dict):
-            return x, y-1
-    elif direction == "S":
-        if hex_legal(x, y+1, game_dict):
-            return x, y+1
-    elif direction == "NE":
-        if x%2 and hex_legal(x+1, y-1, game_dict):
-            return x+1, y-1
-        if not x%2 and hex_legal(x+1, y, game_dict):
-            return x+1, y
-    elif direction == "SE":
-        if x%2 and hex_legal(x+1, y, game_dict):
-            return x+1, y
-        if not x%2 and hex_legal(x+1, y+1, game_dict):
-            return x+1, y+1
-    elif direction == "NW":
-        if x%2 and hex_legal(x-1, y-1, game_dict):
-            return x-1, y-1
-        if not x%2 and hex_legal(x-1, y, game_dict):
-            return x-1, y
-    elif direction == "SW":
-        if x%2 and hex_legal(x-1, y, game_dict):
-            return x-1, y
-        if not x%2 and hex_legal(x-1, y+1, game_dict):
-            return x-1, y+1
-    return None, None
+def get_random_hex(game_dict, exclude_hexlist):
+    """ Retrieve a random hex from the map, with option exclude list. """
+    found = False
+    while not found:
+        candidate_hex = (randrange(game_dict["map_width"]), randrange(game_dict["map_height"]))
+        found = hex_legal(candidate_hex, game_dict) and candidate_hex not in exclude_hexlist
+    return candidate_hex
 
-def hex_occupied(x, y, game_dict):
+def get_random_edge_hex(game_dict):
+    """ Retrieve a random hex on the edge of the map."""
+    found = False
+    while not found:
+        candidate_hex = (randrange(game_dict["map_width"]), randrange(game_dict["map_height"]))
+        if hex_legal(candidate_hex, game_dict):
+            if candidate_hex[0] == 0 or candidate_hex[0] == (game_dict["map_width"] - 1) or \
+                candidate_hex[1] == 0 or \
+                (candidate_hex[0]%2 and candidate_hex[1] == (game_dict["map_height"] - 1)) or \
+                ((not candidate_hex[0]%2) and candidate_hex[1] == (game_dict["map_height"]-2)):
+                found = True
+    return candidate_hex
+
+def get_hex_coords_from_direction(direction, hexx, game_dict): # pylint: disable=R0911,R0912
+    """ given a hex and direction, return that hex's address is legal. """
+    x = hexx[0]
+    y = hexx[1]
+    if direction == "N":
+        if hex_legal((x, y-1), game_dict):
+            return (x, y-1)
+    elif direction == "S":
+        if hex_legal((x, y+1), game_dict):
+            return (x, y+1)
+    elif direction == "NE":
+        if x%2 and hex_legal((x+1, y-1), game_dict):
+            return (x+1, y-1)
+        if not x%2 and hex_legal((x+1, y), game_dict):
+            return (x+1, y)
+    elif direction == "SE":
+        if x%2 and hex_legal((x+1, y), game_dict):
+            return (x+1, y)
+        if not x%2 and hex_legal((x+1, y+1), game_dict):
+            return (x+1, y+1)
+    elif direction == "NW":
+        if x%2 and hex_legal((x-1, y-1), game_dict):
+            return (x-1, y-1)
+        if not x%2 and hex_legal((x-1, y), game_dict):
+            return (x-1, y)
+    elif direction == "SW":
+        if x%2 and hex_legal((x-1, y), game_dict):
+            return (x-1, y)
+        if not x%2 and hex_legal((x-1, y+1), game_dict):
+            return (x-1, y+1)
+    return None
+
+def hex_occupied(hexx, game_dict):
     """ Return a unit if the hex is occupied, else return none. """
     for player in game_dict["players"]:
         for battalion in player.battalion:
             for unit in battalion.units:
-                if unit.x == x and unit.y == y:
+                if unit.hex == hexx:
                     return unit
     return None
 
-def hex_next_to_enemies(x, y, enemy_player, game_dict):
+def hex_next_to_enemies(hexx, enemy_player, game_dict):
     """ Search the 6 adjacent hexes to see if an enemy is there.  Return True/False. """
     for direct in directions:
-        adjx, adjy = get_hex_coords_from_direction(direct, x, y, game_dict)
-        if adjx is not None and adjy is not None:
-            eunit = hex_occupied(adjx, adjy, game_dict)
+        adj_hex = get_hex_coords_from_direction(direct, hexx, game_dict)
+        if adj_hex is not None:
+            eunit = hex_occupied(adj_hex, game_dict)
             if eunit and eunit.player == enemy_player:
                 return True
     return False
