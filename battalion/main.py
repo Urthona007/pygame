@@ -4,7 +4,7 @@ from time import sleep
 import logging
 from game import Player, Battalion, play_game_threaded_function, reset_phases
 from unit import Unit, draw_units
-from hexl import draw_hexs
+from hexl import draw_hexs, get_random_edge_hex, get_random_hex
 import pygame_gui
 import pygame
 
@@ -45,7 +45,7 @@ class MyFormatter(logging.Formatter):
 
         return result
 
-def create_game_logger(game_dict):
+def create_game_logger(game_dict, logname, screen_only = False):
     """ Log messages to the screen and also to a log file. """
     logging.captureWarnings(True)
     game_dict["logger"] = logging.getLogger(__name__)
@@ -55,16 +55,18 @@ def create_game_logger(game_dict):
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     game_dict["logger"].addHandler(ch)
-    # Create log file handler and set level to debug
-    fh = logging.FileHandler(r'battalion_log.txt') #, mode='w')
-    fh.setLevel(logging.DEBUG)
-    fmt = MyFormatter()
-    fh.setFormatter(fmt)
-    # fh.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
-    game_dict["logger"].addHandler(fh)
+
+    if not screen_only:
+        # Create log file handler and set level to debug
+        fh = logging.FileHandler(logname) #, mode='w')
+        fh.setLevel(logging.DEBUG)
+        fmt = MyFormatter()
+        fh.setFormatter(fmt)
+        # fh.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
+        game_dict["logger"].addHandler(fh)
 
 def game_setup(game_dict):
-
+    """ Perform initializations common to both Playback and Main."""
     # init pygame
     pygame.init()
 
@@ -100,12 +102,12 @@ def game_setup(game_dict):
 
     return clock, gui_manager, game_screen, phase_labels
 
-def main():
+def battalion_main(logname, randomize=False):
     """ Start the main code """
     # Create game_dict which holds all game parameters and global cross-thread data and signals.
     # 1) Initialize general settings first
     game_dict = {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
-            'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 50, \
+            'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 47, \
             'map_border' : (100, 8), 'unit_width': 32, 'unit_x_offset': 18, 'unit_y_offset': 34, \
             "game_turn": 1, \
             "game_phases":[("Red Combat", False), ("Blu Combat", False)], "game_running": True \
@@ -142,24 +144,35 @@ def main():
             return "Victory Blu: All Blu forces evacuated!"
 
         game_dict["evacuation_hex"] = (0,4)
-        with open ("battalion_log.txt", mode='w') as f:
+        if randomize:
+            game_dict["evacuation_hex"] = get_random_edge_hex(game_dict)
+        with open (logname, mode='w', encoding="utf-8") as f:
             f.write(f"{game_dict.__str__()}\n")
         game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
         game_dict["players"][0].battalion.append(Battalion(0, "Rommel"))
         game_dict["players"][0].battalion[0].strategy = "Seek and Destroy"
+        start_hex = (8, 1)
+        exclude_hexlist = [game_dict["evacuation_hex"],]
+        if randomize:
+            start_hex = get_random_hex(game_dict, exclude_hexlist)
+            exclude_hexlist.append(start_hex)
         game_dict["players"][0].battalion[0].units.append( \
-            Unit("infantry", "1st Company", 2, 8, 1, 0))
+            Unit("infantry", "1st Company", 2, start_hex, 0))
         game_dict["players"][1].battalion.append(Battalion(0, "DeGaulle"))
         game_dict["players"][1].battalion[0].strategy = "Evacuate"
+        start_hex = (7, 5)
+        if randomize:
+            start_hex = get_random_hex(game_dict, exclude_hexlist)
+            exclude_hexlist.append(start_hex)
         game_dict["players"][1].battalion[0].units.append( \
-            Unit("militia", "Resistance Fighters", 1, 7, 5, 1))
+            Unit("militia", "Resistance Fighters", 1, start_hex, 1))
 
-        with open ("battalion_log.txt", mode = 'a') as f:
+        with open(logname, mode = 'a', encoding="utf-8") as f:
             for player in game_dict["players"]:
                 player.write(f)
 
     # create logger
-    create_game_logger(game_dict)
+    create_game_logger(game_dict, logname)
     game_dict["theme_lock"] = Lock()
     # game_dict["theme_lock"].acquire()
     clock, gui_manager, game_screen, phase_labels = game_setup(game_dict)
@@ -236,4 +249,4 @@ def main():
     pygame.quit()
 
 if __name__ == '__main__':
-    main()
+    battalion_main("battalion_log.txt", True)
