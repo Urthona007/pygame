@@ -19,10 +19,10 @@ def create_hexmap(start_list, game_dict):
     while not hexnode_queue.empty():
         this_hex = hexnode_queue.get()
         for direct in directions:
-            adjx, adjy = get_hex_coords_from_direction(direct, this_hex[0], this_hex[1], game_dict)
-            if adjx is not None and adjy is not None and hexmap[adjx][adjy] == 99:
-                hexmap[adjx][adjy] = hexmap[this_hex[0]][this_hex[1]]+1
-                hexnode_queue.put((adjx, adjy))
+            adj_hex = get_hex_coords_from_direction(direct, this_hex, game_dict)
+            if adj_hex is not None and (hexmap[adj_hex[0]][adj_hex[1]] == 99):
+                hexmap[adj_hex[0]][adj_hex[1]] = hexmap[this_hex[0]][this_hex[1]]+1
+                hexnode_queue.put(adj_hex)
 
     return hexmap
 
@@ -43,7 +43,7 @@ def ai_prevent_evacuation(unit, game_dict):
     e_player = 1 - unit.player
     for battalion in game_dict["players"][e_player].battalion:
         for e_unit in battalion.units:
-            unit_list.append((e_unit.x, e_unit.y))
+            unit_list.append(e_unit.hex)
     enemy_hexmap = create_hexmap(unit_list, game_dict)
 
     enemy_hexmap = evac_hexmap + enemy_hexmap
@@ -52,24 +52,24 @@ def ai_prevent_evacuation(unit, game_dict):
     candidate_list = []
     highval = 199
     for direct in directions:
-        adjx, adjy = get_hex_coords_from_direction(direct, unit.x, unit.y, game_dict)
-        if adjx is not None and adjy is not None and \
-            not hex_occupied(adjx, adjy, game_dict):
-            if enemy_hexmap[adjx][adjy] < highval:
-                candidate_list = [(adjx, adjy),]
-                highval = enemy_hexmap[adjx][adjy]
-            elif enemy_hexmap[adjx][adjy] == highval:
-                if evac_hexmap[adjx][adjy] > \
+        adj_hex = get_hex_coords_from_direction(direct, unit.hex, game_dict)
+        if adj_hex is not None and \
+            not hex_occupied(adj_hex, game_dict):
+            if enemy_hexmap[adj_hex[0]][adj_hex[1]] < highval:
+                candidate_list = [adj_hex,]
+                highval = enemy_hexmap[adj_hex[0]][adj_hex[1]]
+            elif enemy_hexmap[adj_hex[0]][adj_hex[1]] == highval:
+                if evac_hexmap[adj_hex[0]][adj_hex[1]] > \
                     evac_hexmap[candidate_list[0][0]][candidate_list[0][1]]:
-                    candidate_list = [(adjx, adjy),]
-                elif evac_hexmap[adjx][adjy] == \
+                    candidate_list = [adj_hex,]
+                elif evac_hexmap[adj_hex[0]][adj_hex[1]] == \
                     evac_hexmap[candidate_list[0][0]][candidate_list[0][1]]:
-                    candidate_list.append((adjx, adjy))
+                    candidate_list.append(adj_hex)
 
     if len(candidate_list) == 0:
         return GameCmd(unit, None, "PASS", None)
     next_hex = candidate_list[randrange(len(candidate_list))]
-    return(GameCmd(unit, None, "MV", [(unit.x, unit.y), next_hex]))
+    return GameCmd(unit, None, "MV", [unit.hex, next_hex])
 
 def ai_evacuate(unit, game_dict):
     """ return CMD string for unit using strategy EVACUATE. """
@@ -78,18 +78,18 @@ def ai_evacuate(unit, game_dict):
     hexmap = create_hexmap([(game_dict["evacuation_hex"][0], game_dict["evacuation_hex"][1]), ], \
         game_dict)
 
-    if hexmap[unit.x][unit.y] == 0:
+    if hexmap[unit.hex[0]][unit.hex[1]] == 0:
         return GameCmd(unit, None, "EVACUATE", None)
 
     # Choose one of the candidates randomly
     candidate_list = []
     for direct in directions:
-        adjx, adjy = get_hex_coords_from_direction(direct, unit.x, unit.y, game_dict)
-        if adjx is not None and adjy is not None and \
-            hexmap[adjx][adjy] < hexmap[unit.x][unit.y] and \
-            not hex_occupied(adjx, adjy, game_dict):
-            candidate_list.append((adjx, adjy))
+        adj_hex = get_hex_coords_from_direction(direct, unit.hex, game_dict)
+        if adj_hex is not None and \
+            hexmap[adj_hex[0]][adj_hex[1]] < hexmap[unit.hex[0]][unit.hex[1]] and \
+            not hex_occupied(adj_hex, game_dict):
+            candidate_list.append(adj_hex)
     if len(candidate_list) == 0:
         return GameCmd(unit, None, "PASS", None)
     next_hex = candidate_list[randrange(len(candidate_list))]
-    return(GameCmd(unit, None, "MV", [(unit.x, unit.y), next_hex]))
+    return GameCmd(unit, None, "MV", [unit.hex, next_hex])
