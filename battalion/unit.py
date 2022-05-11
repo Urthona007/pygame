@@ -4,12 +4,11 @@ from pygame import draw #pylint: disable=E0401
 
 class Unit():
     """ Basic game piece. """
-    def __init__(self, unit_type, name, strength, x, y, player):
+    def __init__(self, unit_type, name, strength, hexx, player):
         self.type = unit_type
         self.name = name
         self.strength = strength
-        self.x = x
-        self.y = y
+        self.hex = hexx
         self.player = player # warning, chance of info in 2 places.
         self.status = "active"
         self.animating = False
@@ -18,9 +17,11 @@ class Unit():
         self.animation_duration = 2 # seconds
 
     def write(self, f):
-        f.write(f"    {self.type} {self.get_name()} {self.strength} {self.x} {self.y}\n")
+        """ write function """
+        f.write(f"    {self.type} {self.get_name()} {self.strength} {self.hex}\n")
 
     def get_name(self):
+        """ return name, with double quotes when necessary. """
         if " " in self.name:
             return f"\"{self.name}\""
         return {self.name}
@@ -82,12 +83,12 @@ def draw_units(screen, game_dict, time_delta):
                             this_unit.animation_countdown = 0
                             this_unit.animating = False
                             if game_cmd.cmd == "ATTACK":
-                                game_dict["logger"].info(f"{game_cmd.e_unit.name} destroyed!")
-                                game_cmd.e_unit.x = game_cmd.e_unit.y = -1
+                                game_dict["logger"].info(f"{game_cmd.e_unit.get_name()} destroyed!")
+                                game_cmd.e_unit.hex = (-99, -99)
                                 game_cmd.e_unit.status = "destroyed"
                         animating = True
                     else:
-                        x_offset, y_offset = get_hex_offset((this_unit.x, this_unit.y), game_dict)
+                        x_offset, y_offset = get_hex_offset(this_unit.hex, game_dict)
 
                     draw.rect(screen, player_unit_color[player.idx], \
                         (x_offset + game_dict['unit_x_offset'], \
