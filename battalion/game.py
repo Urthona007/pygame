@@ -1,6 +1,5 @@
 """ game utility functions and class definitions """
 import json
-import shutil
 import subprocess
 import sys
 from time import sleep
@@ -17,7 +16,9 @@ class Battalion():
         self.name = name
         self.units = []
         self.strategy = "uninitialized"
+
     def write(self, f):
+        """ write function. """
         f.write(f"  {self.idx} {self.name} {self.strategy}\n")
         for u in self.units:
             u.write(f)
@@ -30,6 +31,7 @@ class Player():
         self.battalion = []
 
     def write(self, f):
+        """ Write function. """
         f.write(f"{self.name}\n")
         for bat in self.battalion:
             bat.write(f)
@@ -64,15 +66,7 @@ def update_phase_gui(game_dict, active_phase):
             f.write("\"\n        }\n    }")
         f.write("\n}\n")
 
-    # Extra debug, could be disabled.
-    with open("battalion/phase_theme_tmp.json", "rt", encoding="utf-8") as f:
-        try:
-            theme_dict = json.load(f)
-        except json.decoder.JSONDecodeError:
-            game_dict["logger"].error("JSON load failure for phase_theme_tmp.json.  Investigate.")
-            sys.exit(-1)
     game_dict["theme_lock"].acquire()
-    # shutil.copy("battalion/phase_theme_tmp.json", "battalion/phase_theme.json") # This may return before finished?
     subprocess.call('mv battalion/phase_theme_tmp.json battalion/phase_theme.json', shell=True)
     game_dict["theme_lock"].release()
 
@@ -93,8 +87,7 @@ def process_command(unit, game_cmd, game_dict):
     elif game_cmd.cmd == "PASS":
         pass
     elif game_cmd.cmd == "MV":
-        unit.x = game_cmd.hexs[-1][0]
-        unit.y = game_cmd.hexs[-1][1]
+        unit.hex = game_cmd.hexs[-1]
         unit.animation_countdown = unit.animation_duration = 1.0
         unit.animation_cmd = game_cmd
         unit.animating = True
@@ -106,20 +99,19 @@ def process_command(unit, game_cmd, game_dict):
         # Choose one of the candidates randomly
         candidate_list = []
         for direct in directions:
-            adjx, adjy = get_hex_coords_from_direction(direct, unit.x, unit.y, game_dict)
-            if adjx is not None and adjy is not None and \
-                not hex_occupied(adjx, adjy, game_dict) and \
-                not hex_next_to_enemies(adjx, adjy, 1-unit.player, game_dict):
-                candidate_list.append((adjx, adjy))
+            adj_hex = get_hex_coords_from_direction(direct, unit.hex, game_dict)
+            if adj_hex is not None and \
+                not hex_occupied(adj_hex, game_dict) and \
+                not hex_next_to_enemies(adj_hex, 1-unit.player, game_dict):
+                candidate_list.append(adj_hex)
         if len(candidate_list) == 0:
             # Nowhere to retreat. TODO, handle nowhere to retreat better.
             game_dict["logger"].info(f"{unit.get_name()} has nowhere to retreat and is destroyed!")
-            unit.x = -1
-            unit.y = -1
+            unit.hex = (-99, -99)
             unit.status = "destroyed"
         else:
             retreat_hex = candidate_list[randrange(len(candidate_list))]
-            derived_cmd = GameCmd(unit, None, "MV", [(unit.x, unit.y), retreat_hex])
+            derived_cmd = GameCmd(unit, None, "MV", [unit.hex, retreat_hex])
             process_command(unit, derived_cmd, game_dict)
 
     game_dict["update_screen_req"] += 1
@@ -136,17 +128,17 @@ def evaluate_combat(player_num, game_dict):
                     for d_unit in d_battalion.units:
                         if d_unit.status == "active":
                             for direct in directions:
-                                adjx, adjy = get_hex_coords_from_direction( \
-                                    direct, a_unit.x, a_unit.y, game_dict)
-                                if adjx is not None and adjy is not None:
-                                    if adjx == d_unit.x and adjy == d_unit.y:
+                                adjhex  = get_hex_coords_from_direction( \
+                                    direct, a_unit.hex, game_dict)
+                                if adjhex is not None :
+                                    if adjhex == d_unit.hex:
                                         # Adjacent unit, this means combat
                                         if a_unit.strength > d_unit.strength:
                                             combat_cmd = GameCmd(a_unit, d_unit, "ATTACK", \
-                                                [(a_unit.x, a_unit.y), (d_unit.x, d_unit.y)])
+                                                [a_unit.hex, d_unit.hex])
                                         else:
                                             combat_cmd = GameCmd(a_unit, None, "RETREAT", \
-                                                [(a_unit.x, a_unit.y),])
+                                                [a_unit.hex,])
                                         process_command(a_unit, combat_cmd, game_dict)
 
 def get_active_phase_idx(active_phase, game_dict):
@@ -218,4 +210,3 @@ def play_game_threaded_function(game_dict, max_turns):
     if game_dict["game_turn"] == max_turns:
         game_dict["logger"].info(f"\nGAME OVER: MAX TURNS {max_turns} reached.")
     game_dict["game_running"] = False
-
