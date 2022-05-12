@@ -208,6 +208,7 @@ def battalion_main(logname, randomize=False):
         # Redraw the screen as necessary
         if game_dict["update_screen_req"] > game_dict["update_screen"] or \
             gui_manager.get_theme().check_need_to_reload() or game_dict["update_gui"]:
+
             # Redraw screen
             if game_dict["update_screen_req"] > game_dict["update_screen"]:
                 game_dict["update_screen"] += 1
@@ -235,7 +236,7 @@ def battalion_main(logname, randomize=False):
             # If this is the first time through the loop, launch the game manager thread.
             if first_time:
                 first_time = False
-                if __name__ == "__main__":
+                if __name__ == "__main__" or __name__ == "battalion.main":
                     sleep(1)
                     gamemaster_thread = Thread( \
                         target = play_game_threaded_function, args = (game_dict, 10))
