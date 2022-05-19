@@ -83,7 +83,8 @@ def draw_units(screen, game_dict, time_delta):
                             this_unit.animation_countdown = 0
                             this_unit.animating = False
                             if game_cmd.cmd == "ATTACK":
-                                game_dict["logger"].info(f"{game_cmd.e_unit.get_name()} destroyed!")
+                                game_dict["logger"].info( \
+                                    f"ELIM {game_cmd.e_unit.get_name()} destroyed!")
                                 game_cmd.e_unit.hex = (-99, -99)
                                 game_cmd.e_unit.status = "destroyed"
                         animating = True

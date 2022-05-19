@@ -1,7 +1,5 @@
 """ game utility functions and class definitions """
-import json
 import subprocess
-import sys
 from time import sleep
 from random import randrange
 from game_cmd import GameCmd
@@ -82,6 +80,7 @@ def reset_phases(game_dict):
 def process_command(unit, game_cmd, game_dict):
     """ Process a text-based unit command from a player."""
     game_dict["logger"].info(f"    {game_cmd}")
+    game_cmd.validate(game_dict)
     if game_cmd.cmd == "EVACUATE":
         unit.status = "off_board"
     elif game_cmd.cmd == "PASS":
@@ -106,7 +105,8 @@ def process_command(unit, game_cmd, game_dict):
                 candidate_list.append(adj_hex)
         if len(candidate_list) == 0:
             # Nowhere to retreat. TODO, handle nowhere to retreat better.
-            game_dict["logger"].info(f"{unit.get_name()} has nowhere to retreat and is destroyed!")
+            game_dict["logger"].info( \
+                f"      ELIM {unit.get_name()} has nowhere to retreat and is destroyed!")
             unit.hex = (-99, -99)
             unit.status = "destroyed"
         else:
@@ -182,7 +182,7 @@ def next_phase(game_dict):
             candidate_phases.append(phase)
     active_phase = candidate_phases[randrange(len(candidate_phases))]
     update_phase_gui(game_dict, active_phase)
-    if " " in active_phase[0]:
+    if " " in active_phase[0]: # Surround with quotes if phase is multiple words
         game_dict["logger"].info(f"  Phase \"{active_phase[0]}\"")
     else:
         game_dict["logger"].info(f"  Phase {active_phase[0]}")

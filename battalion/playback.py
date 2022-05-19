@@ -52,7 +52,7 @@ def playback_threaded_function(game_dict, f):
 def playback_main(logname):
     """ Main playback function."""
     # The entire playback is performed with the logfile open
-    with open(logname, 'r') as f:
+    with open(logname, 'r', encoding="utf-8") as f:
         # 1) Read in the header and setup basic information
         game_dict = ast.literal_eval(f.readline().rstrip('n')) # read in static first line
 
@@ -98,6 +98,7 @@ def playback_main(logname):
             # Get user mouse and keyboard events
             for e in pygame.event.get():
                 # print(event)
+                #pylint: disable=E1101
                 if e.type == pygame.QUIT:
                     game_dict["logger"].warn("GAME ABORTED BY USER.")
                     game_dict["game_running"] = False
@@ -159,7 +160,7 @@ def playback_main(logname):
         gamemaster_thread.join()
 
     # Cleanup
-    pygame.quit()
+    pygame.quit() #pylint: disable=E1101
 
 if __name__ == '__main__':
-    playback_main("battalion_log.txt")
+    playback_main("battalion_20220517_000811_log.txt")

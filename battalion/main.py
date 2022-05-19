@@ -65,10 +65,17 @@ def create_game_logger(game_dict, logname, screen_only = False):
         # fh.setFormatter(logging.Formatter('%(levelname)s:%(message)s'))
         game_dict["logger"].addHandler(fh)
 
+def close_game_logger(game_dict):
+    """ Close game logger."""
+    handlers = game_dict["logger"].handlers[:]
+    for handler in handlers:
+        game_dict["logger"].removeHandler(handler)
+        handler.close()
+
 def game_setup(game_dict):
     """ Perform initializations common to both Playback and Main."""
     # init pygame
-    pygame.init()
+    pygame.init() #pylint: disable=E1101
 
     # 3) Initialize derived game parameters.
     # Add in all movement phases based on how many battalions are specified.
@@ -119,7 +126,7 @@ def battalion_main(logname, randomize=False):
     if scenario == "Hounds":
         # Define the two players' victory conditions
         def player_0_victory_condition(game_dict):
-            """ Player 0 Scenario Hound victory conditions """
+            """ Player 0 "Hound" Scenario Hound victory conditions """
             for battalion in game_dict["players"][1].battalion:
                 for unit in battalion.units:
                     if unit.status in ("active", "off_board"):
@@ -129,7 +136,7 @@ def battalion_main(logname, randomize=False):
             return "Victory Red: All Blu forces eliminated!"
 
         def player_1_victory_condition(game_dict):
-            """ Player 1 Scenario Hound victory conditions """
+            """ Player 1 "Rabbit" Scenario Hound victory conditions """
             if game_dict["game_turn"] == 10:
                 game_dict["game_running"] = False
                 game_dict["logger"].info("Victory Blu \"Turn 10 Blufor still alive.\"")
@@ -143,7 +150,7 @@ def battalion_main(logname, randomize=False):
             game_dict["logger"].info("Victory Blu \"All Blu forces evacuated!\"")
             return "Victory Blu: All Blu forces evacuated!"
 
-        game_dict["evacuation_hex"] = (0,4)
+        game_dict["evacuation_hex"] = (0,2)
         if randomize:
             game_dict["evacuation_hex"] = get_random_edge_hex(game_dict)
         with open (logname, mode='w', encoding="utf-8") as f:
@@ -151,7 +158,7 @@ def battalion_main(logname, randomize=False):
         game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
         game_dict["players"][0].battalion.append(Battalion(0, "Rommel"))
         game_dict["players"][0].battalion[0].strategy = "Seek and Destroy"
-        start_hex = (8, 1)
+        start_hex = (0, 4)
         exclude_hexlist = [game_dict["evacuation_hex"],]
         if randomize:
             start_hex = get_random_hex(game_dict, exclude_hexlist)
@@ -160,7 +167,7 @@ def battalion_main(logname, randomize=False):
             Unit("infantry", "1st Company", 2, start_hex, 0))
         game_dict["players"][1].battalion.append(Battalion(0, "DeGaulle"))
         game_dict["players"][1].battalion[0].strategy = "Evacuate"
-        start_hex = (7, 5)
+        start_hex = (0, 5)
         if randomize:
             start_hex = get_random_hex(game_dict, exclude_hexlist)
             exclude_hexlist.append(start_hex)
@@ -200,8 +207,8 @@ def battalion_main(logname, randomize=False):
         # Get user mouse and keyboard events
         for e in pygame.event.get():
             # print(event)
-            if e.type == pygame.QUIT:
-                game_dict["logger"].warn("GAME ABORTED BY USER.")
+            if e.type == pygame.QUIT: #pylint: disable=E1101
+                game_dict["logger"].warning("GAME ABORTED BY USER.")
                 game_dict["game_running"] = False
             gui_manager.process_events(e)
 
@@ -236,7 +243,7 @@ def battalion_main(logname, randomize=False):
             # If this is the first time through the loop, launch the game manager thread.
             if first_time:
                 first_time = False
-                if __name__ == "__main__" or __name__ == "battalion.main":
+                if __name__ in ("__main__", "battalion.main"):
                     sleep(1)
                     gamemaster_thread = Thread( \
                         target = play_game_threaded_function, args = (game_dict, 10))
@@ -247,7 +254,9 @@ def battalion_main(logname, randomize=False):
         gamemaster_thread.join()
 
     # Cleanup
-    pygame.quit()
+    close_game_logger(game_dict)
+
+    pygame.quit() #pylint: disable=E1101
 
 if __name__ == '__main__':
-    battalion_main("battalion_log.txt", True)
+    battalion_main("battalion_log.txt", False)

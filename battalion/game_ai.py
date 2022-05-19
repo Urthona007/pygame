@@ -2,7 +2,7 @@
 from random import randrange
 import queue
 from game_cmd import GameCmd
-from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
+from hexl import get_hex_coords_from_direction, hex_next_to_enemies, hex_occupied #pylint: disable=E0401
 from hexl import directions
 import numpy as np
 
@@ -29,9 +29,9 @@ def create_hexmap(start_list, game_dict):
 def ai_circle(unit, game_dict):
     """ Return CMD string for unit using strategy CIRCLE. """
     newx, newy = get_hex_coords_from_direction( \
-        directions[game_dict["game_turn"]%6], unit.x, unit.y, game_dict)
-    if not hex_occupied(newx, newy, game_dict):
-        return(GameCmd(unit, None, "MV", [(unit.x, unit.y), (newx, newy)]))
+        directions[game_dict["game_turn"]%6], unit.hex, game_dict)
+    if not hex_occupied(unit.hex, game_dict):
+        return(GameCmd(unit, None, "MV", [unit.hex, (newx, newy)]))
     return GameCmd(unit, None, "PASS", None)
 
 def ai_prevent_evacuation(unit, game_dict):
@@ -51,10 +51,14 @@ def ai_prevent_evacuation(unit, game_dict):
     # Choose one of the candidates randomly
     candidate_list = []
     highval = 199
+    started_in_zoc = hex_next_to_enemies(unit.hex, 1-unit.player, game_dict)
+    if started_in_zoc:
+        return GameCmd(unit, None, "PASS", None) # Stay engaged
     for direct in directions:
         adj_hex = get_hex_coords_from_direction(direct, unit.hex, game_dict)
         if adj_hex is not None and \
-            not hex_occupied(adj_hex, game_dict):
+            not hex_occupied(adj_hex, game_dict) and \
+            (not (started_in_zoc and hex_next_to_enemies(adj_hex, 1-unit.player, game_dict))):
             if enemy_hexmap[adj_hex[0]][adj_hex[1]] < highval:
                 candidate_list = [adj_hex,]
                 highval = enemy_hexmap[adj_hex[0]][adj_hex[1]]
@@ -83,11 +87,17 @@ def ai_evacuate(unit, game_dict):
 
     # Choose one of the candidates randomly
     candidate_list = []
+    started_in_zoc = hex_next_to_enemies(unit.hex, 1-unit.player, game_dict)
+    if started_in_zoc:
+        threshold_val = 998
+    else:
+        threshold_val = hexmap[unit.hex[0]][unit.hex[1]]
     for direct in directions:
         adj_hex = get_hex_coords_from_direction(direct, unit.hex, game_dict)
         if adj_hex is not None and \
-            hexmap[adj_hex[0]][adj_hex[1]] < hexmap[unit.hex[0]][unit.hex[1]] and \
-            not hex_occupied(adj_hex, game_dict):
+            hexmap[adj_hex[0]][adj_hex[1]] < threshold_val and \
+            not hex_occupied(adj_hex, game_dict) and \
+            (not (started_in_zoc and hex_next_to_enemies(adj_hex, 1-unit.player, game_dict))):
             candidate_list.append(adj_hex)
     if len(candidate_list) == 0:
         return GameCmd(unit, None, "PASS", None)
