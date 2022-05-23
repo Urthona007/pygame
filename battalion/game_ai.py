@@ -1,30 +1,24 @@
 """ Functions for AI """
 from random import randrange
 import queue
+from battalion.hexmap import create_hexmap
 from game_cmd import GameCmd
 from hexl import get_hex_coords_from_direction, hex_next_to_enemies, hex_occupied #pylint: disable=E0401
 from hexl import directions
-import numpy as np
 
-def create_hexmap(start_list, game_dict):
-    """ Create a 2D array corresponding to the hexes of integers.  Count away from the start
-    list.  """
-    hexmap = np.full((game_dict["map_width"], game_dict["map_height"]), 99)
-    hexnode_queue = queue.Queue()
+def get_eligible_to_move_to_hex_list(unit, game_dict):
+    """ return a list of eligible hexes and a map, the latter is useful for later path
+        generation.  """
+    move_map = create_hexmap([unit.hex,], game_dict, limit=unit.movement_allowance, source_unit=unit, enforce_zoc=True)
+    hex_list = []
+    for x in range(game_dict["map_width"]):
+        for y in range(game_dict["map_height"]):
+            if move_map[x][y] > 0 and move_map[x][y] <= unit.movement_allowance:
+                hex_list.append((x,y))
+    return hex_list, move_map
 
-    for hx in start_list:
-        hexmap[hx[0]][hx[1]] = 0
-        hexnode_queue.put(hx)
-
-    while not hexnode_queue.empty():
-        this_hex = hexnode_queue.get()
-        for direct in directions:
-            adj_hex = get_hex_coords_from_direction(direct, this_hex, game_dict)
-            if adj_hex is not None and (hexmap[adj_hex[0]][adj_hex[1]] == 99):
-                hexmap[adj_hex[0]][adj_hex[1]] = hexmap[this_hex[0]][this_hex[1]]+1
-                hexnode_queue.put(adj_hex)
-
-    return hexmap
+def create_path(start_hex, dest_hex, move_map):
+    return [start_hex, dest_hex]
 
 def ai_circle(unit, game_dict):
     """ Return CMD string for unit using strategy CIRCLE. """
@@ -36,44 +30,53 @@ def ai_circle(unit, game_dict):
 
 def ai_prevent_evacuation(unit, game_dict):
     """ Hunt units while guarding the evacuation point.  """
+
+    # The evac_hexmap is distance to the evacuation hex
     evac_hexmap = create_hexmap([ \
         (game_dict["evacuation_hex"][0], game_dict["evacuation_hex"][1]), ], game_dict)
 
-    unit_list = []
+    # Create a list of the enemy units
+    e_unit_list = []
     e_player = 1 - unit.player
     for battalion in game_dict["players"][e_player].battalion:
         for e_unit in battalion.units:
-            unit_list.append(e_unit.hex)
-    enemy_hexmap = create_hexmap(unit_list, game_dict)
+            e_unit_list.append(e_unit.hex)
 
+    # Create the enemy hexmap: the distance to the enemies
+    enemy_hexmap = create_hexmap(e_unit_list, game_dict)
+
+    # Add the two maps together.
     enemy_hexmap = evac_hexmap + enemy_hexmap
 
-    # Choose one of the candidates randomly
-    candidate_list = []
-    highval = 199
+    # Is this unit already in the enemy zoc?
     started_in_zoc = hex_next_to_enemies(unit.hex, 1-unit.player, game_dict)
     if started_in_zoc:
         return GameCmd(unit, None, "PASS", None) # Stay engaged
-    for direct in directions:
-        adj_hex = get_hex_coords_from_direction(direct, unit.hex, game_dict)
-        if adj_hex is not None and \
-            not hex_occupied(adj_hex, game_dict) and \
-            (not (started_in_zoc and hex_next_to_enemies(adj_hex, 1-unit.player, game_dict))):
-            if enemy_hexmap[adj_hex[0]][adj_hex[1]] < highval:
-                candidate_list = [adj_hex,]
-                highval = enemy_hexmap[adj_hex[0]][adj_hex[1]]
-            elif enemy_hexmap[adj_hex[0]][adj_hex[1]] == highval:
-                if evac_hexmap[adj_hex[0]][adj_hex[1]] > \
+
+    # Figure out which hex we want to move to.
+    candidate_list = []
+    highval = 199
+    eligible_hex_list, move_map = get_eligible_to_move_to_hex_list(unit, game_dict)
+    for eligible_hex in eligible_hex_list:
+        if eligible_hex is not None and \
+            not hex_occupied(eligible_hex, game_dict) and \
+            (not (started_in_zoc and hex_next_to_enemies(eligible_hex, 1-unit.player, game_dict))):
+            if enemy_hexmap[eligible_hex[0]][eligible_hex[1]] < highval:
+                candidate_list = [eligible_hex,]
+                highval = enemy_hexmap[eligible_hex[0]][eligible_hex[1]]
+            elif enemy_hexmap[eligible_hex[0]][eligible_hex[1]] == highval:
+                if evac_hexmap[eligible_hex[0]][eligible_hex[1]] > \
                     evac_hexmap[candidate_list[0][0]][candidate_list[0][1]]:
-                    candidate_list = [adj_hex,]
-                elif evac_hexmap[adj_hex[0]][adj_hex[1]] == \
+                    candidate_list = [eligible_hex,]
+                elif evac_hexmap[eligible_hex[0]][eligible_hex[1]] == \
                     evac_hexmap[candidate_list[0][0]][candidate_list[0][1]]:
-                    candidate_list.append(adj_hex)
+                    candidate_list.append(eligible_hex)
 
     if len(candidate_list) == 0:
         return GameCmd(unit, None, "PASS", None)
-    next_hex = candidate_list[randrange(len(candidate_list))]
-    return GameCmd(unit, None, "MV", [unit.hex, next_hex])
+    dest_hex = candidate_list[randrange(len(candidate_list))]
+    path = create_path(unit.hex, dest_hex, move_map)
+    return GameCmd(unit, None, "MV", path)
 
 def ai_evacuate(unit, game_dict):
     """ return CMD string for unit using strategy EVACUATE. """

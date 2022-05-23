@@ -4,11 +4,12 @@ from pygame import draw #pylint: disable=E0401
 
 class Unit():
     """ Basic game piece. """
-    def __init__(self, unit_type, name, strength, hexx, player):
+    def __init__(self, unit_type, name, strength, movement_allowance, starting_hex, player):
         self.type = unit_type
         self.name = name
         self.strength = strength
-        self.hex = hexx
+        self.movement_allowance = movement_allowance
+        self.hex = starting_hex
         self.player = player # warning, chance of info in 2 places.
         self.status = "active"
         self.animating = False

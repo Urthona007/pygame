@@ -2,6 +2,7 @@
 from threading import Thread, Lock
 from time import sleep
 import logging
+from hexmap import display_hexmap
 from game import Player, Battalion, play_game_threaded_function, reset_phases
 from unit import Unit, draw_units
 from hexl import draw_hexs, get_random_edge_hex, get_random_hex
@@ -77,6 +78,14 @@ def game_setup(game_dict):
     # init pygame
     pygame.init() #pylint: disable=E1101
 
+    # support drawing hexmaps
+    game_dict["sysfont"] = pygame.font.get_default_font()
+    game_dict["font"] = pygame.font.SysFont("Bill", 24)
+    game_dict["font_img_num"] = []
+    for i in range(30):
+        game_dict["font_img_num"].append(game_dict["font"].render(f"{i}", True, (0, 0, 100)))
+    game_dict["display_hexmap"] = None
+
     # 3) Initialize derived game parameters.
     # Add in all movement phases based on how many battalions are specified.
     for player in game_dict["players"]:
@@ -109,16 +118,16 @@ def game_setup(game_dict):
 
     return clock, gui_manager, game_screen, phase_labels
 
-def battalion_main(logname, randomize=False):
+def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict = {}, randomize=False):
     """ Start the main code """
     # Create game_dict which holds all game parameters and global cross-thread data and signals.
     # 1) Initialize general settings first
-    game_dict = {'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
+    game_dict.update({'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
             'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 47, \
             'map_border' : (100, 8), 'unit_width': 32, 'unit_x_offset': 18, 'unit_y_offset': 34, \
             "game_turn": 1, \
             "game_phases":[("Red Combat", False), ("Blu Combat", False)], "game_running": True \
-            }
+            })
 
     # 2) Initialize specific parameters.  Right now we only have one scenario, Hounds.
     scenario = "Hounds" # pylint: disable-msg=C0103
@@ -158,13 +167,14 @@ def battalion_main(logname, randomize=False):
         game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
         game_dict["players"][0].battalion.append(Battalion(0, "Rommel"))
         game_dict["players"][0].battalion[0].strategy = "Seek and Destroy"
-        start_hex = (0, 4)
+        start_hex = (6, 4)
         exclude_hexlist = [game_dict["evacuation_hex"],]
         if randomize:
             start_hex = get_random_hex(game_dict, exclude_hexlist)
             exclude_hexlist.append(start_hex)
         game_dict["players"][0].battalion[0].units.append( \
-            Unit("infantry", "1st Company", 2, start_hex, 0))
+            Unit(unit_type="infantry", name="1st Company", strength=2, movement_allowance=2, \
+                starting_hex=start_hex, player=0))
         game_dict["players"][1].battalion.append(Battalion(0, "DeGaulle"))
         game_dict["players"][1].battalion[0].strategy = "Evacuate"
         start_hex = (0, 5)
@@ -172,7 +182,8 @@ def battalion_main(logname, randomize=False):
             start_hex = get_random_hex(game_dict, exclude_hexlist)
             exclude_hexlist.append(start_hex)
         game_dict["players"][1].battalion[0].units.append( \
-            Unit("militia", "Resistance Fighters", 1, start_hex, 1))
+            Unit(unit_type="militia", name="Resistance Fighters", strength=1, \
+                movement_allowance=1, starting_hex=start_hex, player=1))
 
         with open(logname, mode = 'a', encoding="utf-8") as f:
             for player in game_dict["players"]:
@@ -232,6 +243,11 @@ def battalion_main(logname, randomize=False):
             for lb in phase_labels:
                 lb.rebuild_from_changed_theme_data()
 
+            # Draw hexmap (test only)
+            if game_dict["display_hexmap"] is not None:
+                game_dict["logger"].info("Calling display hexmap.")
+                display_hexmap(game_screen, game_dict)
+
             gui_manager.update(time_delta)
             gui_manager.draw_ui(game_screen)
             game_dict["theme_lock"].release()
@@ -243,10 +259,13 @@ def battalion_main(logname, randomize=False):
             # If this is the first time through the loop, launch the game manager thread.
             if first_time:
                 first_time = False
-                if __name__ in ("__main__", "battalion.main"):
+                game_dict["logger"].info(f"In first time. {__name__}")
+                if __name__ in ("__main__", "battalion.main", "main"):
                     sleep(1)
+                    game_dict["logger"].info("In first time.")
                     gamemaster_thread = Thread( \
-                        target = play_game_threaded_function, args = (game_dict, 10))
+                        target = game_thread_func, args = game_thread_func_args)
+                        # play_game_threaded_function, args = (game_dict, 10))
                     gamemaster_thread.start()
 
     # We're exiting, and the gamemaster thread should be exiting too...
@@ -259,4 +278,5 @@ def battalion_main(logname, randomize=False):
     pygame.quit() #pylint: disable=E1101
 
 if __name__ == '__main__':
-    battalion_main("battalion_log.txt", False)
+    from_main_game_dict = {}
+    battalion_main("battalion_log.txt", play_game_threaded_function, (from_main_game_dict, 10), from_main_game_dict, randomize=False)

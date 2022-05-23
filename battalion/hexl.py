@@ -112,3 +112,4 @@ def hex_next_to_enemies(hexx, enemy_player, game_dict):
             if eunit and eunit.player == enemy_player:
                 return True
     return False
+
