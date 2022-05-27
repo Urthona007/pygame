@@ -1,7 +1,7 @@
 """ Functions for AI """
 from random import randrange
 import queue
-from battalion.hexmap import create_hexmap
+from hexmap import create_hexmap
 from game_cmd import GameCmd
 from hexl import get_hex_coords_from_direction, hex_next_to_enemies, hex_occupied #pylint: disable=E0401
 from hexl import directions
@@ -30,8 +30,12 @@ def ai_circle(unit, game_dict):
 
 def ai_prevent_evacuation(unit, game_dict):
     """ Hunt units while guarding the evacuation point.  """
+    # Is this unit already in the enemy zoc?
+    started_in_zoc = hex_next_to_enemies(unit.hex, 1-unit.player, game_dict)
+    if started_in_zoc:
+        return GameCmd(unit, None, "PASS", None) # Stay engaged
 
-    # The evac_hexmap is distance to the evacuation hex
+    # The evac_hexmap is distance to the evacuation hex, it ignores blocking units
     evac_hexmap = create_hexmap([ \
         (game_dict["evacuation_hex"][0], game_dict["evacuation_hex"][1]), ], game_dict)
 
@@ -42,38 +46,45 @@ def ai_prevent_evacuation(unit, game_dict):
         for e_unit in battalion.units:
             e_unit_list.append(e_unit.hex)
 
-    # Create the enemy hexmap: the distance to the enemies
+    # Create the enemy hexmap: the distance to the enemies, it ignores blocking units
     enemy_hexmap = create_hexmap(e_unit_list, game_dict)
 
-    # Add the two maps together.
+    # Add the two maps together.  We will then find the hexs with the lowest sum, in
+    # theory, a good balance between guarding the evacuation point but also chasing
+    # the enemy.
     enemy_hexmap = evac_hexmap + enemy_hexmap
 
-    # Is this unit already in the enemy zoc?
-    started_in_zoc = hex_next_to_enemies(unit.hex, 1-unit.player, game_dict)
-    if started_in_zoc:
-        return GameCmd(unit, None, "PASS", None) # Stay engaged
-
+    # Create another hexmap that is the hexes that this unit's movement allowance allows
+    # it to reach.  This function does that and also returns the eligible hexes in a list.
     # Figure out which hex we want to move to.
+    eligible_hex_list, move_map = get_eligible_to_move_to_hex_list(unit, game_dict)
+
+    # Create a candidate list of best hexes to move to.
     candidate_list = []
     highval = 199
-    eligible_hex_list, move_map = get_eligible_to_move_to_hex_list(unit, game_dict)
     for eligible_hex in eligible_hex_list:
-        if eligible_hex is not None and \
-            not hex_occupied(eligible_hex, game_dict) and \
-            (not (started_in_zoc and hex_next_to_enemies(eligible_hex, 1-unit.player, game_dict))):
-            if enemy_hexmap[eligible_hex[0]][eligible_hex[1]] < highval:
-                candidate_list = [eligible_hex,]
-                highval = enemy_hexmap[eligible_hex[0]][eligible_hex[1]]
-            elif enemy_hexmap[eligible_hex[0]][eligible_hex[1]] == highval:
-                if evac_hexmap[eligible_hex[0]][eligible_hex[1]] > \
-                    evac_hexmap[candidate_list[0][0]][candidate_list[0][1]]:
-                    candidate_list = [eligible_hex,]
-                elif evac_hexmap[eligible_hex[0]][eligible_hex[1]] == \
-                    evac_hexmap[candidate_list[0][0]][candidate_list[0][1]]:
-                    candidate_list.append(eligible_hex)
+        # We first look for the most favorable (lowest) enemy_hexmap value
+        hexval = enemy_hexmap[eligible_hex[0]][eligible_hex[1]]
+        if hexval < highval:
+            candidate_list = [eligible_hex,]
+            highval = hexval
+        elif hexval == highval:
+            # in case of a tie, use the most favorable (lowest) evec_hexmap value
+            # to break the tie.
+            evac_hexval = evac_hexmap[eligible_hex[0]][eligible_hex[1]]
+            current_list_evac_hexval = evac_hexmap[candidate_list[0][0]][candidate_list[0][1]]
+            if evac_hexval < current_list_evac_hexval:
+                candidate_list = [eligible_hex,] # This is the sole best candidate
+            elif evac_hexval == current_list_evac_hexval:
+                candidate_list.append(eligible_hex)
+            else:
+                pass
 
+    # If no candidates, just pass
     if len(candidate_list) == 0:
         return GameCmd(unit, None, "PASS", None)
+
+    # Randomly choose the best candidate to be the destination hex if more than one.
     dest_hex = candidate_list[randrange(len(candidate_list))]
     path = create_path(unit.hex, dest_hex, move_map)
     return GameCmd(unit, None, "MV", path)
