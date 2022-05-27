@@ -81,8 +81,9 @@ def game_setup(game_dict):
     # support drawing hexmaps
     game_dict["sysfont"] = pygame.font.get_default_font()
     game_dict["font"] = pygame.font.SysFont("Bill", 24)
+    game_dict["font_img_num_limit"] = 30
     game_dict["font_img_num"] = []
-    for i in range(30):
+    for i in range(game_dict["font_img_num_limit"]):
         game_dict["font_img_num"].append(game_dict["font"].render(f"{i}", True, (0, 0, 100)))
     game_dict["display_hexmap"] = None
 
@@ -118,7 +119,8 @@ def game_setup(game_dict):
 
     return clock, gui_manager, game_screen, phase_labels
 
-def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict = {}, randomize=False):
+def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict = {}, \
+    randomize=False):
     """ Start the main code """
     # Create game_dict which holds all game parameters and global cross-thread data and signals.
     # 1) Initialize general settings first
@@ -221,6 +223,13 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict =
             if e.type == pygame.QUIT: #pylint: disable=E1101
                 game_dict["logger"].warning("GAME ABORTED BY USER.")
                 game_dict["game_running"] = False
+            if e.type==pygame.KEYDOWN:
+                if e.key==pygame.K_p:
+                    game_dict["test_grade"] = "pass"
+                    game_dict["test_continue"] = True
+                elif e.key==pygame.K_f:
+                    game_dict["test_grade"] = "fail"
+                    game_dict["test_continue"] = True
             gui_manager.process_events(e)
 
         # Redraw the screen as necessary
@@ -245,7 +254,6 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict =
 
             # Draw hexmap (test only)
             if game_dict["display_hexmap"] is not None:
-                game_dict["logger"].info("Calling display hexmap.")
                 display_hexmap(game_screen, game_dict)
 
             gui_manager.update(time_delta)
@@ -259,17 +267,18 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict =
             # If this is the first time through the loop, launch the game manager thread.
             if first_time:
                 first_time = False
-                game_dict["logger"].info(f"In first time. {__name__}")
-                if __name__ in ("__main__", "battalion.main", "main"):
+                if __name__ in ("__main__", "battalion.main"):
                     sleep(1)
-                    game_dict["logger"].info("In first time.")
                     gamemaster_thread = Thread( \
                         target = game_thread_func, args = game_thread_func_args)
                         # play_game_threaded_function, args = (game_dict, 10))
                     gamemaster_thread.start()
+                game_dict["initialized"] = True
+
+    game_dict["logger"].info("CLOSING")
 
     # We're exiting, and the gamemaster thread should be exiting too...
-    if gamemaster_thread:
+    if gamemaster_thread is not None:
         gamemaster_thread.join()
 
     # Cleanup
@@ -279,4 +288,5 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict =
 
 if __name__ == '__main__':
     from_main_game_dict = {}
-    battalion_main("battalion_log.txt", play_game_threaded_function, (from_main_game_dict, 10), from_main_game_dict, randomize=False)
+    battalion_main("battalion_log.txt", play_game_threaded_function, \
+        (from_main_game_dict, 10), from_main_game_dict, randomize=False)
