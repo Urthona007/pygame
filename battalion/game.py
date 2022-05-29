@@ -87,7 +87,7 @@ def process_command(unit, game_cmd, game_dict):
         pass
     elif game_cmd.cmd == "MV":
         unit.hex = game_cmd.hexs[-1]
-        unit.animation_countdown = unit.animation_duration = 1.0
+        unit.animation_countdown = unit.animation_duration = 1.0 * (len(game_cmd.hexs) - 1)
         unit.animation_cmd = game_cmd
         unit.animating = True
     elif game_cmd.cmd == "ATTACK":
@@ -208,5 +208,5 @@ def play_game_threaded_function(game_dict, max_turns):
         game_dict["game_turn"] += 1
         sleep(2)
     if game_dict["game_turn"] == max_turns:
-        game_dict["logger"].info(f"\nGAME OVER: MAX TURNS {max_turns} reached.")
+        game_dict["logger"].info(f"GAME OVER: MAX TURNS {max_turns} reached.")
     game_dict["game_running"] = False
