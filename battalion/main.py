@@ -108,19 +108,20 @@ def game_setup(game_dict):
                                             manager=gui_manager)
     phase_labels = []
     for idx, phas in enumerate(game_dict["game_phases"]):
-        phase_labels.append(pygame_gui.elements.UILabel(relative_rect=pygame.Rect((2, 52+22*idx), \
+        phase_labels.append(pygame_gui.elements.UILabel( \
+            relative_rect=pygame.Rect((2, 52+22*idx), \
             (98, 20)), text=phas[0], manager=gui_manager, \
             object_id=pygame_gui.core.ObjectID(class_id='@batt_phase_labels', \
                 object_id=f"#phase_{idx}")))
     clock = pygame.time.Clock()
 
     pygame.display.set_caption(game_dict['name']) # NOTE: this is not working.  I don't know why.
-    game_screen = pygame.display.set_mode((game_dict['display_width'], game_dict['display_height']))
+    game_screen = pygame.display.set_mode( \
+        (game_dict['display_width'], game_dict['display_height']))
 
     return clock, gui_manager, game_screen, phase_labels
 
-def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict = {}, \
-    randomize=False):
+def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, randomize=False):
     """ Start the main code """
     # Create game_dict which holds all game parameters and global cross-thread data and signals.
     # 1) Initialize general settings first
@@ -220,7 +221,10 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict =
         # Get user mouse and keyboard events
         for e in pygame.event.get():
             # print(event)
-            if e.type == pygame.QUIT: #pylint: disable=E1101
+            # A note about the E1101 pylint error disables
+            # https://stackoverflow.com/questions/57116879/how-to-fix-pygame-module-has-no-member-k-right
+            # pylint: disable=E1101
+            if e.type == pygame.QUIT:
                 game_dict["logger"].warning("GAME ABORTED BY USER.")
                 game_dict["game_running"] = False
             if e.type==pygame.KEYDOWN:
@@ -274,8 +278,6 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict =
                         # play_game_threaded_function, args = (game_dict, 10))
                     gamemaster_thread.start()
                 game_dict["initialized"] = True
-
-    game_dict["logger"].info("CLOSING")
 
     # We're exiting, and the gamemaster thread should be exiting too...
     if gamemaster_thread is not None:
