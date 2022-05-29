@@ -25,13 +25,13 @@ class GameCmd():
             # in route
             for hexx in self.hexs[1:-1]:
                 in_zoc = hex_next_to_enemies(hexx, 1-self.unit.player, game_dict)
-                if in_zoc == starting_in_zoc:
-                    game_dict["logger"].error(f"MV ZOC VIOLATION {self}")
+                if in_zoc:
+                    game_dict["logger"].error(f"MV ZOC VIOLATION(1): hex {hexx} of cmd {self}")
                     return False
 
             # final destination
             in_zoc = hex_next_to_enemies(self.hexs[-1], 1-self.unit.player, game_dict)
-            if in_zoc == starting_in_zoc == True:
-                game_dict["logger"].error(f"MV ZOC VIOLATION {self}")
+            if in_zoc and starting_in_zoc:
+                game_dict["logger"].error(f"MV ZOC VIOLATION(2): hex {self.hexs[-1]} of cmd {self}")
                 return False
         return True
