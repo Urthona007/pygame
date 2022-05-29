@@ -1,14 +1,16 @@
 """ Code for running pytest on the battalion game. """
 from datetime import datetime
+import pytest
+from battalion.game import play_game_threaded_function
 from battalion.main import battalion_main
-# import pytest nuke this??
 
-###@pytest.mark.parametrize('run_test_n_times', range(2))
-def test_battalion():
+@pytest.mark.parametrize('run_test_n_times', range(1))
+def test_battalion(run_test_n_times): #pylint: disable=W0613 # Allows pytest to run multiple times
     """ Open a log, run a random game, inspect the results."""
     logname = datetime.now().strftime("battalion_%Y%m%d_%H%M%S_log.txt")
-    battalion_main(logname, True)
-
+    from_test_battalion_dict = {}
+    battalion_main(logname, play_game_threaded_function, \
+        (from_test_battalion_dict, 10), from_test_battalion_dict, randomize=True)
     # Open up log file and validate it
     with open(logname, "r", encoding="utf-8") as f:
         # Make sure you can find a line that has turn 1
