@@ -1,6 +1,5 @@
 """ Functions for AI """
 from random import randrange
-import queue
 from hexmap import create_hexmap
 from game_cmd import GameCmd
 from hexl import get_hex_coords_from_direction, hex_next_to_enemies, hex_occupied #pylint: disable=E0401
@@ -9,7 +8,8 @@ from hexl import directions
 def get_eligible_to_move_to_hex_list(unit, game_dict):
     """ return a list of eligible hexes and a map, the latter is useful for later path
         generation.  """
-    move_map = create_hexmap([unit.hex,], game_dict, limit=unit.movement_allowance, source_unit=unit, enforce_zoc=True)
+    move_map = create_hexmap([unit.hex,], game_dict, limit=unit.movement_allowance, \
+        source_unit=unit, enforce_zoc=True)
     hex_list = []
     for x in range(game_dict["map_width"]):
         for y in range(game_dict["map_height"]):
@@ -17,8 +17,25 @@ def get_eligible_to_move_to_hex_list(unit, game_dict):
                 hex_list.append((x,y))
     return hex_list, move_map
 
-def create_path(start_hex, dest_hex, move_map):
-    return [start_hex, dest_hex]
+def create_path(start_hex, dest_hex, move_map, enemy_player, game_dict):
+    """ Create a list of hexes that is a legal path for a move."""
+    path = [dest_hex]
+    while path[0] != start_hex:
+        candidate_list = []
+        for direct in directions:
+            adj_hex = get_hex_coords_from_direction(direct, path[0], game_dict)
+            if adj_hex == start_hex:
+                path.insert(0, adj_hex)
+                return path
+            if adj_hex is not None and \
+                move_map[adj_hex[0]][adj_hex[1]] < move_map[path[0][0]][path[0][1]] and \
+                not hex_occupied(adj_hex, game_dict) and \
+                not hex_next_to_enemies(adj_hex, enemy_player, game_dict):
+                candidate_list.append(adj_hex)
+        assert candidate_list
+        next_hex = candidate_list[randrange(len(candidate_list))]
+        path.insert(0, next_hex)
+    assert False
 
 def ai_circle(unit, game_dict):
     """ Return CMD string for unit using strategy CIRCLE. """
@@ -86,7 +103,7 @@ def ai_prevent_evacuation(unit, game_dict):
 
     # Randomly choose the best candidate to be the destination hex if more than one.
     dest_hex = candidate_list[randrange(len(candidate_list))]
-    path = create_path(unit.hex, dest_hex, move_map)
+    path = create_path(unit.hex, dest_hex, move_map, 1-unit.player, game_dict)
     return GameCmd(unit, None, "MV", path)
 
 def ai_evacuate(unit, game_dict):
