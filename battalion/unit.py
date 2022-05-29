@@ -1,4 +1,5 @@
 """ Utilities for hexl units. """
+from numpy import cos, pi
 from hexl import get_hex_offset
 from pygame import draw #pylint: disable=E0401
 
@@ -59,26 +60,51 @@ def draw_units(screen, game_dict, time_delta):
                 if this_unit.status == "active":
                     if this_unit.animating:
                         game_cmd = this_unit.animation_cmd
-                        start_x_offset, start_y_offset = \
-                            get_hex_offset(game_cmd.hexs[0], game_dict)
-                        end_x_offset, end_y_offset = get_hex_offset(game_cmd.hexs[1], game_dict)
-                        interpolation = \
+
+                        # Determine number of spans and span_duration.  A 2 hex move would have 2
+                        # spans.
+                        num_spans = len(game_cmd.hexs) - 1
+                        span_duration = this_unit.animation_duration / num_spans
+
+                        # Overall interpolation is where we are in the entire animation.
+                        # Local interpolation will be where we are on a span.  Solve for
+                        # these along with the start_span index into the hex list
+                        overall_interpolation = \
                             (this_unit.animation_duration - this_unit.animation_countdown) \
                             / this_unit.animation_duration
-                        assert 0.0 <= interpolation <= 1.0
+                        assert 0.0 <= overall_interpolation <= 1.0
+                        start_span = 0
+                        while (start_span+1)*span_duration < \
+                            this_unit.animation_duration - this_unit.animation_countdown:
+                            start_span += 1
+
+                        start_x_offset, start_y_offset = \
+                            get_hex_offset(game_cmd.hexs[start_span], game_dict)
+                        end_x_offset, end_y_offset = \
+                            get_hex_offset(game_cmd.hexs[start_span+1], game_dict)
+
+                        # Handle animation based on whether a MV or an ATTACK
                         if game_cmd.cmd == "MV":
+                            # Add in "snap"
+                            local_interpolation = (overall_interpolation - start_span/num_spans) \
+                                 * num_spans
+                            assert 0.0 <= local_interpolation <= 1.0
+                            local_interpolation = (1 - cos(local_interpolation*pi))/2
                             x_offset = start_x_offset + (end_x_offset - start_x_offset) \
-                                * interpolation
+                                * local_interpolation
                             y_offset = start_y_offset + (end_y_offset - start_y_offset) \
-                                * interpolation
+                                * local_interpolation
                         else:
                             assert game_cmd.cmd == "ATTACK"
                             # 0->1 to 0->1->0->1->0 double thrust
-                            interpolation = attack_double_pulse_interpolation(interpolation)
+                            interpolation = attack_double_pulse_interpolation(overall_interpolation)
                             x_offset = start_x_offset + (end_x_offset - start_x_offset) \
                                 * interpolation
                             y_offset = start_y_offset + (end_y_offset - start_y_offset) \
                                 * interpolation
+
+                        # Advance countdown time.  When countdown is complete, update the game
+                        # status with results of the completed command.
                         this_unit.animation_countdown -= time_delta
                         if this_unit.animation_countdown < 0:
                             this_unit.animation_countdown = 0
@@ -88,6 +114,7 @@ def draw_units(screen, game_dict, time_delta):
                                     f"ELIM {game_cmd.e_unit.get_name()} destroyed!")
                                 game_cmd.e_unit.hex = (-99, -99)
                                 game_cmd.e_unit.status = "destroyed"
+
                         animating = True
                     else:
                         x_offset, y_offset = get_hex_offset(this_unit.hex, game_dict)
