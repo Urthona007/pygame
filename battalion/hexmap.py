@@ -1,6 +1,7 @@
 """ Manage hexmaps """
 
 import queue
+from time import sleep
 from hexl import get_hex_coords_from_direction, get_hex_offset, hex_legal, hex_next_to_enemies, hex_occupied
 from hexl import directions
 import numpy as np
@@ -15,6 +16,13 @@ def display_hexmap(game_screen, game_dict):
             # limit to number of font images
             hexval = min(game_dict["font_img_num_limit"]-1, game_dict["display_hexmap"][x][y])
             game_screen.blit(game_dict["font_img_num"][hexval], (x_offset+20, y_offset+40))
+
+def show_hexmap_and_wait_for_continue(hexmap, game_dict):
+    game_dict["test_continue"] = False
+    game_dict["display_hexmap"] = hexmap
+    game_dict["update_screen_req"] += 1
+    while not game_dict["test_continue"]:
+        sleep(0.1)
 
 def create_hexmap(start_list, game_dict, limit=99, source_unit=None, enforce_zoc=False):
     """ Create a 2D array corresponding to the hexes of integers.  Count away from the start
