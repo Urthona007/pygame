@@ -69,7 +69,7 @@ def ai_prevent_evacuation(unit, game_dict):
     # Add the two maps together.  We will then find the hexs with the lowest sum, in
     # theory, a good balance between guarding the evacuation point but also chasing
     # the enemy.
-    enemy_hexmap = evac_hexmap + enemy_hexmap
+    combined_hexmap = evac_hexmap + enemy_hexmap
 
     # Create another hexmap that is the hexes that this unit's movement allowance allows
     # it to reach.  This function does that and also returns the eligible hexes in a list.
@@ -81,18 +81,18 @@ def ai_prevent_evacuation(unit, game_dict):
     highval = 199
     for eligible_hex in eligible_hex_list:
         # We first look for the most favorable (lowest) enemy_hexmap value
-        hexval = enemy_hexmap[eligible_hex[0]][eligible_hex[1]]
-        if hexval < highval:
+        combo_hexval = combined_hexmap[eligible_hex[0]][eligible_hex[1]]
+        if combo_hexval < highval:
             candidate_list = [eligible_hex,]
-            highval = hexval
-        elif hexval == highval:
-            # in case of a tie, use the most favorable (lowest) evec_hexmap value
+            highval = combo_hexval
+        elif combo_hexval == highval:
+            # in case of a tie, use the most favorable (lowest) enemy_hexmap value
             # to break the tie.
-            evac_hexval = evac_hexmap[eligible_hex[0]][eligible_hex[1]]
-            current_list_evac_hexval = evac_hexmap[candidate_list[0][0]][candidate_list[0][1]]
-            if evac_hexval < current_list_evac_hexval:
+            enemy_hexval = enemy_hexmap[eligible_hex[0]][eligible_hex[1]]
+            current_list_enemy_hexval = enemy_hexmap[candidate_list[0][0]][candidate_list[0][1]]
+            if enemy_hexval < current_list_enemy_hexval:
                 candidate_list = [eligible_hex,] # This is the sole best candidate
-            elif evac_hexval == current_list_evac_hexval:
+            elif enemy_hexval == current_list_enemy_hexval:
                 candidate_list.append(eligible_hex)
             else:
                 pass
@@ -109,28 +109,53 @@ def ai_prevent_evacuation(unit, game_dict):
 def ai_evacuate(unit, game_dict):
     """ return CMD string for unit using strategy EVACUATE. """
 
-    # Create a hexmap with the evacuation hex as its origin.
-    hexmap = create_hexmap([(game_dict["evacuation_hex"][0], game_dict["evacuation_hex"][1]), ], \
-        game_dict)
+    # Create a hexmap with the evacuation hex as its origin.  Enemy can block this.
+    evac_hexmap = create_hexmap( \
+        [(game_dict["evacuation_hex"][0], game_dict["evacuation_hex"][1]), ], \
+        game_dict, limit=99, source_unit=unit, enforce_zoc=True)
 
-    if hexmap[unit.hex[0]][unit.hex[1]] == 0:
+    if evac_hexmap[unit.hex[0]][unit.hex[1]] == 0:
         return GameCmd(unit, None, "EVACUATE", None)
 
-    # Choose one of the candidates randomly
-    candidate_list = []
-    started_in_zoc = hex_next_to_enemies(unit.hex, 1-unit.player, game_dict)
-    if started_in_zoc:
-        threshold_val = 998
-    else:
-        threshold_val = hexmap[unit.hex[0]][unit.hex[1]]
-    for direct in directions:
-        adj_hex = get_hex_coords_from_direction(direct, unit.hex, game_dict)
-        if adj_hex is not None and \
-            hexmap[adj_hex[0]][adj_hex[1]] < threshold_val and \
-            not hex_occupied(adj_hex, game_dict) and \
-            (not (started_in_zoc and hex_next_to_enemies(adj_hex, 1-unit.player, game_dict))):
-            candidate_list.append(adj_hex)
-    if len(candidate_list) == 0:
+    # Create a list of the enemy units and then generate an enemy_hexmap
+    e_unit_list = []
+    e_player = 1 - unit.player
+    for battalion in game_dict["players"][e_player].battalion:
+        for e_unit in battalion.units:
+            e_unit_list.append(e_unit.hex)
+    enemy_hexmap = create_hexmap(e_unit_list, game_dict)
+
+    # Create another hexmap that is the hexes that this unit's movement allowance allows
+    # it to reach.  This function does that and also returns the eligible hexes in a list.
+    # Figure out which hex we want to move to.
+    eligible_hex_list, move_map = get_eligible_to_move_to_hex_list(unit, game_dict)
+
+    # Remove any hexes that are adjacent to the enemy
+    filtered_eligible_hex_list = []
+    for hexx in eligible_hex_list:
+        if not hex_next_to_enemies(hexx, 1-unit.player, game_dict):
+            filtered_eligible_hex_list.append(hexx)
+
+    if not filtered_eligible_hex_list:
         return GameCmd(unit, None, "PASS", None)
-    next_hex = candidate_list[randrange(len(candidate_list))]
-    return GameCmd(unit, None, "MV", [unit.hex, next_hex])
+
+    # Create a candidate_list.  We want the lowest evac hex and the highest enemy hex.
+    combo_hexmap = evac_hexmap - enemy_hexmap
+    #started_in_zoc = hex_next_to_enemies(unit.hex, 1-unit.player, game_dict)
+    #if started_in_zoc:
+    #    threshold_val = 998
+    #else:
+    #    threshold_val = hexmap[unit.hex[0]][unit.hex[1]]
+    candidate_list = []
+    for hexx in filtered_eligible_hex_list:
+        if (not candidate_list) or \
+            combo_hexmap[hexx[0]][hexx[1]] < \
+            combo_hexmap[candidate_list[0][0]][candidate_list[0][1]]:
+            candidate_list = [hexx,]
+        elif combo_hexmap[hexx[0]][hexx[1]] == \
+            combo_hexmap[candidate_list[0][0]][candidate_list[0][1]]:
+            candidate_list.append(hexx)
+
+    dest_hex = candidate_list[randrange(len(candidate_list))]
+    path = create_path(unit.hex, dest_hex, move_map, 1-unit.player, game_dict)
+    return GameCmd(unit, None, "MV", path)
