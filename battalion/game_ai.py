@@ -1,5 +1,6 @@
 """ Functions for AI """
 from random import randrange
+from unit import get_player_active_unit_hexes
 from hexmap import create_hexmap
 from game_cmd import GameCmd
 from hexl import get_hex_coords_from_direction, hex_next_to_enemies, hex_occupied #pylint: disable=E0401
@@ -56,12 +57,9 @@ def ai_prevent_evacuation(unit, game_dict):
     evac_hexmap = create_hexmap([ \
         (game_dict["evacuation_hex"][0], game_dict["evacuation_hex"][1]), ], game_dict)
 
-    # Create a list of the enemy units
-    e_unit_list = []
+    # Retrieve list of active enemy unit hexes
     e_player = 1 - unit.player
-    for battalion in game_dict["players"][e_player].battalion:
-        for e_unit in battalion.units:
-            e_unit_list.append(e_unit.hex)
+    e_unit_list = get_player_active_unit_hexes(game_dict["players"][e_player])
 
     # Create the enemy hexmap: the distance to the enemies, it ignores blocking units
     enemy_hexmap = create_hexmap(e_unit_list, game_dict)
@@ -117,12 +115,9 @@ def ai_evacuate(unit, game_dict):
     if evac_hexmap[unit.hex[0]][unit.hex[1]] == 0:
         return GameCmd(unit, None, "EVACUATE", None)
 
-    # Create a list of the enemy units and then generate an enemy_hexmap
-    e_unit_list = []
+    # Retrieve list of active enemy unit hexes and create a hexmap.
     e_player = 1 - unit.player
-    for battalion in game_dict["players"][e_player].battalion:
-        for e_unit in battalion.units:
-            e_unit_list.append(e_unit.hex)
+    e_unit_list = get_player_active_unit_hexes(game_dict["players"][e_player])
     enemy_hexmap = create_hexmap(e_unit_list, game_dict)
 
     # Create another hexmap that is the hexes that this unit's movement allowance allows
