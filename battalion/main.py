@@ -3,7 +3,7 @@ from threading import Thread, Lock
 from time import sleep
 import logging
 from hexmap import display_hexmap
-from game import Player, Battalion, play_game_threaded_function, reset_phases
+from game import Player, Battalion, play_game_threaded_function, reset_phases, sanity_check
 from unit import Unit, draw_units
 from hexl import draw_hexs, get_random_edge_hex, get_random_hex
 import pygame_gui
@@ -155,9 +155,8 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
                 return "Victory Blu: Turn 10 Blufor still alive."
             for battalion in game_dict["players"][1].battalion:
                 for unit in battalion.units:
-                    if unit.status == "active":
+                    if unit.status != "off_board":
                         return None
-                    assert unit.status == "off_board"
             game_dict["game_running"] = False
             game_dict["logger"].info("Victory Blu \"All Blu forces evacuated!\"")
             return "Victory Blu: All Blu forces evacuated!"
@@ -165,29 +164,45 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
         game_dict["evacuation_hex"] = (0,2)
         if randomize:
             game_dict["evacuation_hex"] = get_random_edge_hex(game_dict)
+            exclude_hexlist = [game_dict["evacuation_hex"],]
         with open (logname, mode='w', encoding="utf-8") as f:
             f.write(f"{game_dict.__str__()}\n")
         game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
         game_dict["players"][0].battalion.append(Battalion(0, "Rommel"))
         game_dict["players"][0].battalion[0].strategy = "Seek and Destroy"
+
         start_hex = (6, 4)
-        exclude_hexlist = [game_dict["evacuation_hex"],]
         if randomize:
             start_hex = get_random_hex(game_dict, exclude_hexlist)
             exclude_hexlist.append(start_hex)
         game_dict["players"][0].battalion[0].units.append( \
             Unit(unit_type="infantry", name="1st Company", strength=2, movement_allowance=2, \
                 starting_hex=start_hex, player=0))
+
+        start_hex = (2, 1)
+        if randomize:
+            start_hex = get_random_hex(game_dict, exclude_hexlist)
+            exclude_hexlist.append(start_hex)
+        game_dict["players"][0].battalion[0].units.append( \
+            Unit(unit_type="infantry", name="2nd Company", strength=2, movement_allowance=2, \
+                starting_hex=start_hex, player=0))
         game_dict["players"][1].battalion.append(Battalion(0, "DeGaulle"))
         game_dict["players"][1].battalion[0].strategy = "Evacuate"
+
         start_hex = (0, 5)
         if randomize:
             start_hex = get_random_hex(game_dict, exclude_hexlist)
             exclude_hexlist.append(start_hex)
         game_dict["players"][1].battalion[0].units.append( \
-            Unit(unit_type="militia", name="Resistance Fighters", strength=1, \
+            Unit(unit_type="militia", name="Colonel Hogan", strength=1, \
                 movement_allowance=1, starting_hex=start_hex, player=1))
-
+        start_hex = (6,0)
+        if randomize:
+            start_hex = get_random_hex(game_dict, exclude_hexlist)
+            exclude_hexlist.append(start_hex)
+        game_dict["players"][1].battalion[0].units.append( \
+            Unit(unit_type="militia", name="Louie LeBeau", strength=1, \
+                movement_allowance=1, starting_hex=start_hex, player=1))
         with open(logname, mode = 'a', encoding="utf-8") as f:
             for player in game_dict["players"]:
                 player.write(f)
@@ -268,6 +283,8 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
             # Update Dispay overall
             pygame.display.update()
 
+            sanity_check(game_dict)
+
             # If this is the first time through the loop, launch the game manager thread.
             if first_time:
                 first_time = False
@@ -291,4 +308,4 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
 if __name__ == '__main__':
     from_main_game_dict = {}
     battalion_main("battalion_log.txt", play_game_threaded_function, \
-        (from_main_game_dict, 10), from_main_game_dict, randomize=False)
+        (from_main_game_dict, 10), from_main_game_dict, randomize=True)
