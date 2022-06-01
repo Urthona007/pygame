@@ -6,6 +6,7 @@ from time import sleep
 import pytest
 from game_ai import create_hexmap
 from main import battalion_main
+from settings import sleap_waiting_for_other_thread, sleap_waiting_for_user
 
 @pytest.fixture(autouse=True, scope="session")
 def pytest_configure():
@@ -21,11 +22,11 @@ def start_game():
         args=(logname, None, None, pytest.test_hexmap_game_dict, False))
     pytest.test_hexmap_display_thread.start()
     while not pytest.test_hexmap_game_dict["initialized"]:
-        sleep(0.1)
+        sleap_waiting_for_other_thread()
     yield pytest.test_hexmap_display_thread
     pytest.test_hexmap_game_dict["game_running"] = False
     while pytest.test_hexmap_display_thread.is_alive():
-        sleep(0.1)
+        sleap_waiting_for_other_thread()
 
 @pytest.mark.parametrize("evac_hex_list, start_list, sz_limit, red_unit_hex, blue_unit_hex, enforce_zoc_val", \
     [ \
@@ -49,7 +50,7 @@ def test_hexmap(evac_hex_list, start_list, sz_limit, red_unit_hex, blue_unit_hex
 
     # Wait for user to pass/fail
     while not pytest.test_hexmap_game_dict["test_continue"]:
-        sleep(0.1)
+        sleap_waiting_for_user
     pytest.test_hexmap_game_dict["test_continue"] = False
 
     # Process the grade.

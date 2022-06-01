@@ -1,7 +1,8 @@
 """ game utility functions and class definitions """
 import subprocess
-from time import sleep
 from random import randrange
+from settings import get_attack_animation_duration, get_mv_animation_base_duration, \
+    sleap_post_game_phase, sleap_post_game_turn, sleap_waiting_for_other_thread
 from unit import units_animating
 from game_cmd import GameCmd
 from game_ai import ai_evacuate, ai_prevent_evacuation
@@ -101,11 +102,11 @@ def process_command(unit, game_cmd, game_dict):
         pass
     elif game_cmd.cmd == "MV":
         unit.hex = game_cmd.hexs[-1]
-        unit.animation_countdown = unit.animation_duration = 1.0 * (len(game_cmd.hexs) - 1)
+        unit.animation_countdown = unit.animation_duration = get_mv_animation_base_duration() * (len(game_cmd.hexs) - 1)
         unit.animation_cmd = game_cmd
         unit.animating = True
     elif game_cmd.cmd == "ATTACK":
-        unit.animation_countdown = unit.animation_duration = 1.0
+        unit.animation_countdown = unit.animation_duration = get_attack_animation_duration()
         unit.animation_cmd = game_cmd
         unit.animating = True
     elif game_cmd.cmd == "RETREAT":
@@ -155,7 +156,7 @@ def evaluate_combat(player_num, game_dict):
                                                 [a_unit.hex,])
                                         process_command(a_unit, combat_cmd, game_dict)
                                         while units_animating(game_dict):
-                                            sleep(0.1)
+                                            sleap_waiting_for_other_thread()
 
 def get_active_phase_idx(active_phase, game_dict):
     """ Get the active phase's index. """
@@ -184,14 +185,14 @@ def execute_phase(game_dict, active_phase):
                                 command = ai_evacuate(unit, game_dict)
                                 process_command(unit, command, game_dict)
                                 while units_animating(game_dict):
-                                    sleep(0.1)
+                                    sleap_waiting_for_other_thread()
                     else:
                         for unit in battalion.units:
                             if unit.status == "active":
                                 command = ai_prevent_evacuation(unit, game_dict)
                                 process_command(unit, command, game_dict)
                                 while units_animating(game_dict):
-                                    sleep(0.1)
+                                    sleap_waiting_for_other_thread()
     #update_phase_gui(game_dict)
 
 def next_phase(game_dict):
@@ -209,12 +210,12 @@ def next_phase(game_dict):
         game_dict["logger"].info(f"  Phase {active_phase[0]}")
 
     while game_dict["update_gui"]:
-        sleep(0.1)
+        sleap_waiting_for_other_thread()
     execute_phase(game_dict, active_phase[0])
     for i, phase in enumerate(phase_list):
         if phase[0] == active_phase[0]:
             phase_list[i] = (active_phase[0], True)
-    sleep(2)
+    sleap_post_game_phase()
 
 def play_game_threaded_function(game_dict):
     """ This is the function that starts the game manager thread.  This thread is run in parallel
@@ -227,5 +228,5 @@ def play_game_threaded_function(game_dict):
             next_phase(game_dict)
         reset_phases(game_dict)
         game_dict["game_turn"] += 1
-        sleep(2)
+        sleap_post_game_turn()
     game_dict["game_running"] = False

@@ -289,7 +289,7 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
             if first_time:
                 first_time = False
                 if __name__ in ("__main__", "battalion.main"):
-                    sleep(1)
+                    sleep(1) # TODO What happens if I get rid of this?
                     gamemaster_thread = Thread( \
                         target = game_thread_func, args = game_thread_func_args)
                         # play_game_threaded_function, args = (game_dict, 10))
@@ -308,4 +308,4 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
 if __name__ == '__main__':
     from_main_game_dict = {}
     battalion_main("battalion_log.txt", play_game_threaded_function, \
-        (from_main_game_dict, 10), from_main_game_dict, randomize=True)
+        (from_main_game_dict,), from_main_game_dict, randomize=True)

@@ -1,7 +1,7 @@
 """ Manage hexmaps """
 
 import queue
-from time import sleep
+from settings import sleap_waiting_for_user
 from hexl import get_hex_coords_from_direction, get_hex_offset, hex_legal, hex_next_to_enemies, \
     hex_occupied
 from hexl import directions
@@ -25,7 +25,7 @@ def show_hexmap_and_wait_for_continue(hexmap, game_dict):
     game_dict["display_hexmap"] = hexmap
     game_dict["update_screen_req"] += 1
     while not game_dict["test_continue"]:
-        sleep(0.1)
+        sleap_waiting_for_user()
 
 def create_hexmap(start_list, game_dict, limit=99, source_unit=None, enforce_zoc=False):
     """ Create a 2D array corresponding to the hexes of integers.  Count away from the start
