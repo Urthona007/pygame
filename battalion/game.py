@@ -2,8 +2,9 @@
 import subprocess
 from time import sleep
 from random import randrange
+from unit import units_animating
 from game_cmd import GameCmd
-from game_ai import ai_evacuate, ai_circle, ai_prevent_evacuation
+from game_ai import ai_evacuate, ai_prevent_evacuation
 from hexl import directions, hex_next_to_enemies
 from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
 
@@ -33,6 +34,19 @@ class Player():
         f.write(f"{self.name}\n")
         for bat in self.battalion:
             bat.write(f)
+
+def sanity_check(game_dict):
+    """ Check for bad game state."""
+    unit_list = []
+    hex_list = []
+    for player in game_dict["players"]:
+        for battalion in player.battalion:
+            for this_unit in battalion.units:
+                if this_unit.status == "active":
+                    unit_list.append(this_unit)
+                    hex_list.append(this_unit.hex)
+    if len(hex_list) != len(set(hex_list)):
+        game_dict["logger"].error("Duplicate hexes {unit_list} {hex_list}")
 
 def active_phases(game_dict):
     """ Are there any active phases? """
@@ -140,6 +154,8 @@ def evaluate_combat(player_num, game_dict):
                                             combat_cmd = GameCmd(a_unit, None, "RETREAT", \
                                                 [a_unit.hex,])
                                         process_command(a_unit, combat_cmd, game_dict)
+                                        while units_animating(game_dict):
+                                            sleep(0.1)
 
 def get_active_phase_idx(active_phase, game_dict):
     """ Get the active phase's index. """
@@ -164,13 +180,18 @@ def execute_phase(game_dict, active_phase):
                 if battalion.name in active_phase:
                     if battalion.strategy == "Evacuate":
                         for unit in battalion.units:
-                            command = ai_evacuate(unit, game_dict)
-                            process_command(unit, command, game_dict)
+                            if unit.status == "active":
+                                command = ai_evacuate(unit, game_dict)
+                                process_command(unit, command, game_dict)
+                                while units_animating(game_dict):
+                                    sleep(0.1)
                     else:
                         for unit in battalion.units:
-                            command = ai_prevent_evacuation(unit, game_dict)
-                            process_command(unit, command, game_dict)
-
+                            if unit.status == "active":
+                                command = ai_prevent_evacuation(unit, game_dict)
+                                process_command(unit, command, game_dict)
+                                while units_animating(game_dict):
+                                    sleep(0.1)
     #update_phase_gui(game_dict)
 
 def next_phase(game_dict):
@@ -195,7 +216,7 @@ def next_phase(game_dict):
             phase_list[i] = (active_phase[0], True)
     sleep(2)
 
-def play_game_threaded_function(game_dict, max_turns):
+def play_game_threaded_function(game_dict):
     """ This is the function that starts the game manager thread.  This thread is run in parallel
         to the main (display) thread. """
     reset_phases(game_dict)
@@ -207,6 +228,4 @@ def play_game_threaded_function(game_dict, max_turns):
         reset_phases(game_dict)
         game_dict["game_turn"] += 1
         sleep(2)
-    if game_dict["game_turn"] == max_turns:
-        game_dict["logger"].info(f"GAME OVER: MAX TURNS {max_turns} reached.")
     game_dict["game_running"] = False
