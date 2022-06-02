@@ -5,9 +5,11 @@ from pygame import draw #pylint: disable=E0401
 
 class Unit():
     """ Basic game piece. """
-    def __init__(self, *, unit_type, name, strength, movement_allowance, starting_hex, player):
+    def __init__(self, *, unit_type, name, attack, strength, movement_allowance, starting_hex, \
+        player):
         self.type = unit_type
         self.name = name
+        self.attack = attack
         self.strength = strength
         self.movement_allowance = movement_allowance
         self.hex = starting_hex

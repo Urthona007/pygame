@@ -5,7 +5,8 @@ from settings import get_attack_animation_duration, get_mv_animation_base_durati
     sleap_post_game_phase, sleap_post_game_turn, sleap_waiting_for_other_thread
 from unit import units_animating
 from game_cmd import GameCmd
-from game_ai import ai_evacuate, ai_prevent_evacuation
+from game_ai import ai_capture_city_and_destroy, ai_defend_city_and_delay, ai_evacuate, \
+     ai_prevent_evacuation
 from hexl import directions, hex_next_to_enemies
 from hexl import get_hex_coords_from_direction, hex_occupied #pylint: disable=E0401
 
@@ -102,11 +103,13 @@ def process_command(unit, game_cmd, game_dict):
         pass
     elif game_cmd.cmd == "MV":
         unit.hex = game_cmd.hexs[-1]
-        unit.animation_countdown = unit.animation_duration = get_mv_animation_base_duration() * (len(game_cmd.hexs) - 1)
+        unit.animation_countdown = unit.animation_duration = \
+            get_mv_animation_base_duration() * (len(game_cmd.hexs) - 1)
         unit.animation_cmd = game_cmd
         unit.animating = True
     elif game_cmd.cmd == "ATTACK":
-        unit.animation_countdown = unit.animation_duration = get_attack_animation_duration()
+        unit.animation_countdown = unit.animation_duration = \
+            get_attack_animation_duration()
         unit.animation_cmd = game_cmd
         unit.animating = True
     elif game_cmd.cmd == "RETREAT":
@@ -179,20 +182,17 @@ def execute_phase(game_dict, active_phase):
         for player in game_dict["players"]:
             for battalion in player.battalion:
                 if battalion.name in active_phase:
-                    if battalion.strategy == "Evacuate":
-                        for unit in battalion.units:
-                            if unit.status == "active":
-                                command = ai_evacuate(unit, game_dict)
-                                process_command(unit, command, game_dict)
-                                while units_animating(game_dict):
-                                    sleap_waiting_for_other_thread()
-                    else:
-                        for unit in battalion.units:
-                            if unit.status == "active":
-                                command = ai_prevent_evacuation(unit, game_dict)
-                                process_command(unit, command, game_dict)
-                                while units_animating(game_dict):
-                                    sleap_waiting_for_other_thread()
+                    strategy_dict = {"Evacuate": ai_evacuate, \
+                        "Prevent Evacuation": ai_prevent_evacuation,
+                        "Capture City and Destroy": ai_capture_city_and_destroy,
+                        "Defend City and Delay": ai_defend_city_and_delay
+                        }
+                    for unit in battalion.units:
+                        if unit.status == "active":
+                            command = strategy_dict[battalion.strategy](unit, game_dict)
+                            process_command(unit, command, game_dict)
+                            while units_animating(game_dict):
+                                sleap_waiting_for_other_thread()
     #update_phase_gui(game_dict)
 
 def next_phase(game_dict):

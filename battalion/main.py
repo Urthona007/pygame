@@ -2,10 +2,11 @@
 from threading import Thread, Lock
 from time import sleep
 import logging
+from scenario import create_bears_den_scenario, create_hounds_scenario
 from hexmap import display_hexmap
-from game import Player, Battalion, play_game_threaded_function, reset_phases, sanity_check
-from unit import Unit, draw_units
-from hexl import draw_hexs, get_random_edge_hex, get_random_hex
+from game import play_game_threaded_function, reset_phases, sanity_check
+from unit import draw_units
+from hexl import draw_hexs
 import pygame_gui
 import pygame
 
@@ -48,6 +49,11 @@ class MyFormatter(logging.Formatter):
 
 def create_game_logger(game_dict, logname, screen_only = False):
     """ Log messages to the screen and also to a log file. """
+    # Write the header of the logfile
+    with open(logname, mode = 'a', encoding="utf-8") as f:
+        for player in game_dict["players"]:
+            player.write(f)
+
     logging.captureWarnings(True)
     game_dict["logger"] = logging.getLogger(__name__)
     game_dict["logger"].setLevel(logging.DEBUG)
@@ -126,86 +132,19 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
     # Create game_dict which holds all game parameters and global cross-thread data and signals.
     # 1) Initialize general settings first
     game_dict.update({'name': 'Battalion', 'display_width' : 640, 'display_height' : 480, \
-            'bkg_color': (50, 50, 50), 'map_width': 11, 'map_height': 8, 'map_multiplier': 47, \
-            'map_border' : (100, 8), 'unit_width': 32, 'unit_x_offset': 18, 'unit_y_offset': 34, \
-            "game_turn": 1, \
+            'bkg_color': (50, 50, 50), \
+            'map_border' : (100, 8), "game_turn": 1, \
             "game_phases":[("Red Combat", False), ("Blu Combat", False)], "game_running": True \
             })
 
     # 2) Initialize specific parameters.  Right now we only have one scenario, Hounds.
-    scenario = "Hounds" # pylint: disable-msg=C0103
+    #scenario = "Hounds" # pylint: disable-msg=C0103
+    scenario = "Bear's Den" # pylint: disable-msg=C0103
     game_dict["scenario"] = scenario
     if scenario == "Hounds":
-        # Define the two players' victory conditions
-        def player_0_victory_condition(game_dict):
-            """ Player 0 "Hound" Scenario Hound victory conditions """
-            for battalion in game_dict["players"][1].battalion:
-                for unit in battalion.units:
-                    if unit.status in ("active", "off_board"):
-                        return None
-            game_dict["game_running"] = False
-            game_dict["logger"].info("Victory Red \"All Blu forces eliminated!\"")
-            return "Victory Red: All Blu forces eliminated!"
-
-        def player_1_victory_condition(game_dict):
-            """ Player 1 "Rabbit" Scenario Hound victory conditions """
-            if game_dict["game_turn"] == 10:
-                game_dict["game_running"] = False
-                game_dict["logger"].info("Victory Blu \"Turn 10 Blufor still alive.\"")
-                return "Victory Blu: Turn 10 Blufor still alive."
-            for battalion in game_dict["players"][1].battalion:
-                for unit in battalion.units:
-                    if unit.status != "off_board":
-                        return None
-            game_dict["game_running"] = False
-            game_dict["logger"].info("Victory Blu \"All Blu forces evacuated!\"")
-            return "Victory Blu: All Blu forces evacuated!"
-
-        game_dict["evacuation_hex"] = (0,2)
-        if randomize:
-            game_dict["evacuation_hex"] = get_random_edge_hex(game_dict)
-            exclude_hexlist = [game_dict["evacuation_hex"],]
-        with open (logname, mode='w', encoding="utf-8") as f:
-            f.write(f"{game_dict.__str__()}\n")
-        game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
-        game_dict["players"][0].battalion.append(Battalion(0, "Rommel"))
-        game_dict["players"][0].battalion[0].strategy = "Seek and Destroy"
-
-        start_hex = (6, 4)
-        if randomize:
-            start_hex = get_random_hex(game_dict, exclude_hexlist)
-            exclude_hexlist.append(start_hex)
-        game_dict["players"][0].battalion[0].units.append( \
-            Unit(unit_type="infantry", name="1st Company", strength=2, movement_allowance=2, \
-                starting_hex=start_hex, player=0))
-
-        start_hex = (2, 1)
-        if randomize:
-            start_hex = get_random_hex(game_dict, exclude_hexlist)
-            exclude_hexlist.append(start_hex)
-        game_dict["players"][0].battalion[0].units.append( \
-            Unit(unit_type="infantry", name="2nd Company", strength=2, movement_allowance=2, \
-                starting_hex=start_hex, player=0))
-        game_dict["players"][1].battalion.append(Battalion(0, "DeGaulle"))
-        game_dict["players"][1].battalion[0].strategy = "Evacuate"
-
-        start_hex = (0, 5)
-        if randomize:
-            start_hex = get_random_hex(game_dict, exclude_hexlist)
-            exclude_hexlist.append(start_hex)
-        game_dict["players"][1].battalion[0].units.append( \
-            Unit(unit_type="militia", name="Colonel Hogan", strength=1, \
-                movement_allowance=1, starting_hex=start_hex, player=1))
-        start_hex = (6,0)
-        if randomize:
-            start_hex = get_random_hex(game_dict, exclude_hexlist)
-            exclude_hexlist.append(start_hex)
-        game_dict["players"][1].battalion[0].units.append( \
-            Unit(unit_type="militia", name="Louie LeBeau", strength=1, \
-                movement_allowance=1, starting_hex=start_hex, player=1))
-        with open(logname, mode = 'a', encoding="utf-8") as f:
-            for player in game_dict["players"]:
-                player.write(f)
+        create_hounds_scenario(game_dict, logname, randomize)
+    elif scenario == "Bear's Den":
+        create_bears_den_scenario(game_dict, logname, randomize)
 
     # create logger
     create_game_logger(game_dict, logname)
@@ -227,8 +166,8 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
     game_dict["update_screen"] = 0
 
     # Main game loop.  Keep looping until someone wins or the game is no longer running
-    while (not player_0_victory_condition(game_dict)) and \
-        (not player_1_victory_condition(game_dict)) \
+    while (not game_dict["victory_condition"][0](game_dict)) and \
+        (not game_dict["victory_condition"][1](game_dict)) \
         and game_dict["game_running"]:
 
         time_delta = clock.tick(60)/1000.0

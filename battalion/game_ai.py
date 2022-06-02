@@ -154,3 +154,11 @@ def ai_evacuate(unit, game_dict):
     dest_hex = candidate_list[randrange(len(candidate_list))]
     path = create_path(unit.hex, dest_hex, move_map, 1-unit.player, game_dict)
     return GameCmd(unit, None, "MV", path)
+
+def ai_capture_city_and_destroy(unit, game_dict):
+    """ return CMD string for unit trying to capture city and destroy enemies."""
+    return GameCmd(unit, None, "PASS", None)
+
+def ai_defend_city_and_delay(unit, game_dict):
+    """ return CMD string for unit defending a city and delaying enemy advances."""
+    return GameCmd(unit, None, "PASS", None)
