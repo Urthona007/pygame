@@ -308,4 +308,4 @@ def battalion_main(logname, game_thread_func, game_thread_func_args, game_dict, 
 if __name__ == '__main__':
     from_main_game_dict = {}
     battalion_main("battalion_log.txt", play_game_threaded_function, \
-        (from_main_game_dict,), from_main_game_dict, randomize=True)
+        (from_main_game_dict,), from_main_game_dict, randomize=False)

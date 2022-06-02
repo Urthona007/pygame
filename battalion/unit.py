@@ -15,7 +15,7 @@ class Unit():
         self.status = "active"
         self.animating = False
         self.animation_cmd = ""
-        self.animation_countdown = 2 # seconds
+        self.animation_countdown = 2 # seconds, these get overwritten
         self.animation_duration = 2 # seconds
 
     def write(self, f):
@@ -121,10 +121,14 @@ def draw_units(screen, game_dict, time_delta):
             else:
                 x_offset, y_offset = get_hex_offset(this_unit.hex, game_dict)
 
+            unit_x_offset = game_dict["map_multiplier"] * 0.35
+            unit_y_offset = game_dict["map_multiplier"] * 0.675
+            unit_width = game_dict["map_multiplier"] * 0.67
+
             draw.rect(screen, player_unit_color[p_idx], \
-                (x_offset + game_dict['unit_x_offset'], \
-                y_offset + game_dict['unit_y_offset'], \
-                game_dict['unit_width'], game_dict['unit_width']))
+                (x_offset + unit_x_offset, \
+                y_offset + unit_y_offset, \
+                unit_width, unit_width))
     return animating
 
 def units_animating(game_dict):

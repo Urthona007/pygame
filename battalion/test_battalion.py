@@ -10,7 +10,7 @@ def test_battalion(run_test_n_times): #pylint: disable=W0613 # Allows pytest to 
     logname = datetime.now().strftime("battalion_%Y%m%d_%H%M%S_log.txt")
     from_test_battalion_dict = {}
     battalion_main(logname, play_game_threaded_function, \
-        (from_test_battalion_dict, 10), from_test_battalion_dict, randomize=True)
+        (from_test_battalion_dict,), from_test_battalion_dict, randomize=True)
     # Open up log file and validate it
     with open(logname, "r", encoding="utf-8") as f:
         # Make sure you can find a line that has turn 1
