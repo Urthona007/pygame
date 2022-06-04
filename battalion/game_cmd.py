@@ -3,10 +3,15 @@
 from hexl import hex_next_to_enemies
 
 class CombatCmd():
-    def __init__(self, attackers, defenders, cmd):
+    def __init__(self, attackers, defenders, attack_strength, defense_strength, cmd):
         self.attackers = attackers
         self.defenders = defenders
+        self.attack_strength = attack_strength
+        self.defense_strength = defense_strength
         self.cmd = cmd
+
+    def __str__(self):
+        return f"{self.attack_strength}/{self.defense_strength} {self.cmd}"
 
 class GameCmd():
     "Holds game command info."

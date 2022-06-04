@@ -223,7 +223,9 @@ def execute_battle_group_combat(battle_group, game_dict):
     for d in battle_group.defenders:
         defense_power += d.strength
     result_str = combat_result(attack_power, defense_power)
-    combat_cmd = CombatCmd(battle_group.attackers, battle_group.defenders, combat_result(attack_power, defense_power))
+    combat_cmd = CombatCmd(battle_group.attackers, battle_group.defenders, attack_power, defense_power, result_str)
+    game_dict["logger"].info(f"{combat_cmd}")
+
     process_combat_command(combat_cmd, game_dict)
     while units_animating(game_dict):
         sleap_waiting_for_other_thread()
