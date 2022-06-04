@@ -42,9 +42,10 @@ def playback_threaded_function(game_dict, f):
                             game_dict["game_phases"][i] = (active_phase[0], True)
                 elif sstring[0] == "MV":
                     # Converting string to list
-                    mv_hexs = ast.literal_eval(sstring[2])
+                    mv_hexes = ast.literal_eval(sstring[2])
                     mv_unit = get_unit_by_name(sstring[1], game_dict)
-                    mv_unit.hex = mv_hexs[-1]
+                    mv_unit.hex = mv_hexes[-1]
+                    game_dict["update_screen_req"] += 1
             if game_dict["key_request"] == "next phase" or \
                 (game_dict["key_request"] == "next turn" and sstring[0] == "Turn"):
                 game_dict["key_request"] = ""
@@ -58,17 +59,22 @@ def playback_main(logname):
 
         game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
         for i in range(0,2):
-            unused_player_name = f.readline().rstrip('n')
-            nextstrs = f.readline().rstrip('n').split()
-            game_dict["players"][i].battalion.append(Battalion(int(nextstrs[0]), nextstrs[1]))
-            game_dict["players"][i].battalion[0].strategy = " ".join(nextstrs[2:])
-            unitstr = shlex.split(f.readline().rstrip('n'))
-            unitstr[3] += unitstr[4]
-            print(unitstr)
-            game_dict["players"][i].battalion[0].units.append( \
-                    Unit(unitstr[0], unitstr[1], int(unitstr[2]), ast.literal_eval(unitstr[3]), \
-                        game_dict["players"][i]))
-            # print(game_dict["players"][i].battalion[0].units[0])
+            nextstrs = shlex.split(f.readline().rstrip('n'))
+            num_battalions = int(nextstrs[1])
+            for b in range(num_battalions):
+                nextstrs = shlex.split(f.readline().rstrip('n'))
+                game_dict["players"][i].battalion.append(Battalion(int(nextstrs[0]), nextstrs[1]))
+                num_units = int(nextstrs[2])
+                game_dict["players"][i].battalion[0].strategy = " ".join(nextstrs[3:])
+                for u in range(num_units):
+                    unitstr = shlex.split(f.readline().rstrip('n'))
+                    unitstr[5] += unitstr[6]
+                    unitstr.pop()
+                    game_dict["players"][i].battalion[0].units.append( \
+                        Unit(unit_type=unitstr[0], name=unitstr[1], attack=int(unitstr[2]), \
+                            strength=int(unitstr[3]), movement_allowance=int(unitstr[4]), \
+                            starting_hex=ast.literal_eval(unitstr[5]), player_num=i))
+            # print(game_diunit_type=ct["players"name=][i].battalion[0].units[0])
 
         # 2) Setup the game very similar to the main game
         # create logger
@@ -163,4 +169,4 @@ def playback_main(logname):
     pygame.quit() #pylint: disable=E1101
 
 if __name__ == '__main__':
-    playback_main("battalion_20220517_000811_log.txt")
+    playback_main("battalion_log.txt")

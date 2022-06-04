@@ -6,14 +6,15 @@ from pygame import draw #pylint: disable=E0401
 class Unit():
     """ Basic game piece. """
     def __init__(self, *, unit_type, name, attack, strength, movement_allowance, starting_hex, \
-        player):
+        player_num):
         self.type = unit_type
         self.name = name
         self.attack = attack
         self.strength = strength
+        self.health = 2
         self.movement_allowance = movement_allowance
         self.hex = starting_hex
-        self.player = player # warning, chance of info in 2 places.
+        self.player_num = player_num # warning, chance of info in 2 places.
         self.status = "active"
         self.animating = False
         self.animation_cmd = ""
@@ -22,7 +23,7 @@ class Unit():
 
     def write(self, f):
         """ write function """
-        f.write(f"    {self.type} {self.get_name()} {self.strength} {self.hex}\n")
+        f.write(f"    {self.type} {self.get_name()} {self.attack} {self.strength} {self.movement_allowance} {self.hex}\n")
 
     def get_name(self):
         """ return name, with double quotes when necessary. """
@@ -56,7 +57,7 @@ def get_animating_unit_hex_offset(this_unit, game_dict):
     """ Get the hex offset of an animating unit."""
     # Determine number of spans and span_duration.  A 2 hex move would have 2
     # spans.
-    num_spans = len(this_unit.animation_cmd.hexs) - 1
+    num_spans = len(this_unit.animation_cmd.hexes) - 1
     span_duration = this_unit.animation_duration / num_spans
 
     # Overall interpolation is where we are in the entire animation.
@@ -72,9 +73,9 @@ def get_animating_unit_hex_offset(this_unit, game_dict):
         start_span += 1
 
     start_x_offset, start_y_offset = \
-        get_hex_offset(this_unit.animation_cmd.hexs[start_span], game_dict)
+        get_hex_offset(this_unit.animation_cmd.hexes[start_span], game_dict)
     end_x_offset, end_y_offset = \
-        get_hex_offset(this_unit.animation_cmd.hexs[start_span+1], game_dict)
+        get_hex_offset(this_unit.animation_cmd.hexes[start_span+1], game_dict)
 
     # Handle animation based on whether a MV or an ATTACK
     if this_unit.animation_cmd.cmd == "MV":
@@ -118,7 +119,8 @@ def draw_units(screen, game_dict, time_delta):
                             f"ELIM {this_unit.animation_cmd.e_unit.get_name()} destroyed!")
                         this_unit.animation_cmd.e_unit.hex = (-99, -99)
                         this_unit.animation_cmd.e_unit.status = "destroyed"
-
+                    elif this_unit.animation_cmd.cmd == "MV":
+                        this_unit.hex = this_unit.animation_cmd.hexes[-1]
                 animating = True
             else:
                 x_offset, y_offset = get_hex_offset(this_unit.hex, game_dict)
@@ -156,10 +158,10 @@ def get_player_active_units(player):
                 unit_list.append(unit)
     return unit_list
 
-def get_player_active_unit_hexes(player):
+def get_player_active_units_and_hexes(player):
     """ Get list of hexes occupied by a player's units."""
     unit_list = get_player_active_units(player)
     unit_hex_list = []
     for u in unit_list:
         unit_hex_list.append(u.hex)
-    return unit_hex_list
+    return unit_list, unit_hex_list

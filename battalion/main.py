@@ -6,13 +6,13 @@ from scenario import create_bears_den_scenario, create_hounds_scenario
 from hexmap import display_hexmap
 from game import play_game_threaded_function, reset_phases, sanity_check
 from unit import draw_units
-from hexl import draw_hexs
+from hexl import draw_hexes
 import pygame_gui
 import pygame
 
 def draw_map(screen, a_game_dict):
     """ Draw game map. """
-    draw_hexs(screen, a_game_dict)
+    draw_hexes(screen, a_game_dict)
 
 class MyFormatter(logging.Formatter):
     """ Logging formatter subclass that formats log msgs differently based on msg level """

@@ -56,7 +56,7 @@ def create_hexmap(start_list, game_dict, limit=99, source_unit=None, enforce_zoc
                     # But should it seed more hexes?  It should if either we are not enforcing zoc
                     # or we're not next to enemies
                     if (not enforce_zoc) or \
-                        (not hex_next_to_enemies(adj_hex, 1-source_unit.player, game_dict)):
+                        (not hex_next_to_enemies(adj_hex, 1-source_unit.player_num, game_dict)):
                         hexnode_queue.put(adj_hex)
 
     return hexmap

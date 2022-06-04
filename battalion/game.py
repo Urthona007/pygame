@@ -3,8 +3,8 @@ import subprocess
 from random import randrange
 from settings import get_attack_animation_duration, get_mv_animation_base_duration, \
     sleap_post_game_phase, sleap_post_game_turn, sleap_waiting_for_other_thread
-from unit import units_animating
-from game_cmd import GameCmd
+from unit import get_player_active_units, get_player_active_units_and_hexes, units_animating
+from game_cmd import CombatCmd, GameCmd
 from game_ai import ai_capture_city_and_destroy, ai_defend_city_and_delay, ai_evacuate, \
      ai_prevent_evacuation
 from hexl import directions, hex_next_to_enemies
@@ -20,10 +20,15 @@ class Battalion():
 
     def write(self, f):
         """ write function. """
-        f.write(f"  {self.idx} {self.name} {self.strategy}\n")
+        f.write(f"  {self.idx} {self.get_name()} {len(self.units)} \"{self.strategy}\"\n")
         for u in self.units:
             u.write(f)
 
+    def get_name(self):
+        """ return name, with double quotes when necessary. """
+        if " " in self.name:
+            return f"\"{self.name}\""
+        return {self.name}
 class Player():
     """ Players can be Human or AI """
     def __init__(self, idx, name):
@@ -33,7 +38,7 @@ class Player():
 
     def write(self, f):
         """ Write function. """
-        f.write(f"{self.name}\n")
+        f.write(f"{self.name} {len(self.battalion)}\n")
         for bat in self.battalion:
             bat.write(f)
 
@@ -93,6 +98,7 @@ def reset_phases(game_dict):
     update_phase_gui(game_dict, "no active phase")
 
 
+
 def process_command(unit, game_cmd, game_dict):
     """ Process a text-based unit command from a player."""
     game_dict["logger"].info(f"    {game_cmd}")
@@ -102,9 +108,8 @@ def process_command(unit, game_cmd, game_dict):
     elif game_cmd.cmd == "PASS":
         pass
     elif game_cmd.cmd == "MV":
-        unit.hex = game_cmd.hexs[-1]
         unit.animation_countdown = unit.animation_duration = \
-            get_mv_animation_base_duration() * (len(game_cmd.hexs) - 1)
+            get_mv_animation_base_duration() * (len(game_cmd.hexes) - 1)
         unit.animation_cmd = game_cmd
         unit.animating = True
     elif game_cmd.cmd == "ATTACK":
@@ -119,7 +124,7 @@ def process_command(unit, game_cmd, game_dict):
             adj_hex = get_hex_coords_from_direction(direct, unit.hex, game_dict)
             if adj_hex is not None and \
                 not hex_occupied(adj_hex, game_dict) and \
-                not hex_next_to_enemies(adj_hex, 1-unit.player, game_dict):
+                not hex_next_to_enemies(adj_hex, 1-unit.player_num, game_dict):
                 candidate_list.append(adj_hex)
         if len(candidate_list) == 0:
             # Nowhere to retreat. TODO, handle nowhere to retreat better.
@@ -134,32 +139,132 @@ def process_command(unit, game_cmd, game_dict):
 
     game_dict["update_screen_req"] += 1
 
+def process_combat_command(combat_cmd, game_dict):
+    if combat_cmd.cmd == "Defender -2 and Defender retreat." or \
+    combat_cmd.cmd == "Defender -1 and Defender retreat." or \
+    combat_cmd.cmd == "Defender retreat." or \
+    combat_cmd.cmd == "Both retreat.":
+        for d in combat_cmd.defenders:
+            game_cmd = GameCmd(d, None, "RETREAT", [d.hex,])
+            process_command(d, game_cmd, game_dict)
+    else:
+        for a in combat_cmd.attackers:
+            game_cmd = GameCmd(a, None, "RETREAT", [a.hex,])
+            process_command(a, game_cmd, game_dict)
+
+def recursive_find_combat_group(this_unit, \
+    already_discovered_hexes, enemy_hexes, ally_hexes, game_dict):
+    for direct in directions:
+        adjhex  = get_hex_coords_from_direction(direct, this_unit.hex, game_dict)
+        if adjhex and adjhex in enemy_hexes and \
+            (adjhex not in already_discovered_hexes):
+                already_discovered_hexes.append(adjhex)
+                recursive_find_combat_group(hex_occupied(adjhex, game_dict), \
+                    already_discovered_hexes, ally_hexes, enemy_hexes, game_dict)
+
+class BattleGroup():
+    """ A collection of 2 or more contiguous units in combat. """
+    def __init__(self, attackers, defenders):
+        self.attackers = attackers
+        self.defenders = defenders
+
+    def __str__(self):
+        return_str = "Battle Group: "
+        for a in self.attackers:
+            return_str += f"{a.name} {a.hex} "
+        return_str += "vs."
+        for d in self.defenders:
+            return_str += f"{d.name} {d.hex} "
+        return return_str
+
+def identify_battle_groups(player_num, game_dict):
+    battle_group_list = []
+    a_units, a_hexes = get_player_active_units_and_hexes(game_dict["players"][player_num])
+    d_units, d_hexes = get_player_active_units_and_hexes(game_dict["players"][1-player_num])
+    already_discovered_hexes = []
+
+    for a_unit in a_units:
+        if a_unit.hex not in already_discovered_hexes:
+            already_discovered_hexes.append(a_unit.hex)
+            num_discovered = len(already_discovered_hexes)
+            recursive_find_combat_group(a_unit, \
+                already_discovered_hexes, d_hexes, a_hexes,
+                game_dict)
+            if len(already_discovered_hexes) > num_discovered:
+                # Battle group found
+                attackers = []
+                defenders = []
+                for hidx in range(num_discovered-1, len(already_discovered_hexes)):
+                    discovered_unit = hex_occupied(already_discovered_hexes[hidx], game_dict)
+                    if discovered_unit.player_num == a_unit.player_num:
+                        attackers.append(discovered_unit)
+                    else:
+                        defenders.append(discovered_unit)
+                battle_group_list.append(BattleGroup(attackers, defenders))
+    return battle_group_list
+
+def combat_result(off_pts, def_pts):
+    ratio = off_pts/def_pts
+    if ratio >= 4.0:
+        return "Defender -2 and Defender retreat."
+    elif ratio >= 3.0:
+        return "Defender -1 and Defender retreat."
+    elif ratio >= 2.5:
+        return "Defender retreat."
+    elif ratio >= 2.0:
+        return "Both retreat."
+    else:
+        return "Retreat."
+
+def execute_battle_group_combat(battle_group, game_dict):
+    attack_power = defense_power = 0
+    for a in battle_group.attackers:
+        attack_power += a.attack
+    for d in battle_group.defenders:
+        defense_power += d.strength
+    result_str = combat_result(attack_power, defense_power)
+    combat_cmd = CombatCmd(battle_group.attackers, battle_group.defenders, combat_result(attack_power, defense_power))
+    process_combat_command(combat_cmd, game_dict)
+    while units_animating(game_dict):
+        sleap_waiting_for_other_thread()
 
 def evaluate_combat(player_num, game_dict):
     """ Evaluate and execute a combat phase. """
-    aggressor = game_dict["players"][player_num]
-    defender = game_dict["players"][player_num-1]
-    for a_battalion in aggressor.battalion:
-        for a_unit in a_battalion.units:
-            if a_unit.status == "active":
-                for d_battalion in defender.battalion:
-                    for d_unit in d_battalion.units:
-                        if d_unit.status == "active":
-                            for direct in directions:
-                                adjhex  = get_hex_coords_from_direction( \
-                                    direct, a_unit.hex, game_dict)
-                                if adjhex is not None :
-                                    if adjhex == d_unit.hex:
+
+    # Step One: Identify contiguous battle groups.
+    battle_group_list = identify_battle_groups(player_num, game_dict)
+    game_dict["logger"].info(f"Num battle groups = {len(battle_group_list)}")
+    for bg in battle_group_list:
+        game_dict["logger"].info(f"BG: {bg}")
+
+    # Step Two: Execute each battle group
+    for battle_group in battle_group_list:
+        execute_battle_group_combat(battle_group, game_dict)
+
+
+#    aggressor = game_dict["players"][player_num]
+#    defender = game_dict["players"][player_num-1]
+#    for a_battalion in aggressor.battalion:
+#        for a_unit in a_battalion.units:
+#            if a_unit.status == "active":
+#                for d_battalion in defender.battalion:
+#                    for d_unit in d_battalion.units:
+#                        if d_unit.status == "active":
+#                            for direct in directions:
+#                                adjhex  = get_hex_coords_from_direction( \
+#                                    direct, a_unit.hex, game_dict)
+#                                if adjhex is not None :
+#                                    if adjhex == d_unit.hex:
                                         # Adjacent unit, this means combat
-                                        if a_unit.strength > d_unit.strength:
-                                            combat_cmd = GameCmd(a_unit, d_unit, "ATTACK", \
-                                                [a_unit.hex, d_unit.hex])
-                                        else:
-                                            combat_cmd = GameCmd(a_unit, None, "RETREAT", \
-                                                [a_unit.hex,])
-                                        process_command(a_unit, combat_cmd, game_dict)
-                                        while units_animating(game_dict):
-                                            sleap_waiting_for_other_thread()
+#                                        if a_unit.strength > d_unit.strength:
+#                                            combat_cmd = GameCmd(a_unit, d_unit, "ATTACK", \
+#                                                [a_unit.hex, d_unit.hex])
+#                                        else:
+#                                            combat_cmd = GameCmd(a_unit, None, "RETREAT", \
+#                                                [a_unit.hex,])
+#                                        process_command(a_unit, combat_cmd, game_dict)
+#                                        while units_animating(game_dict):
+#                                            sleap_waiting_for_other_thread()
 
 def get_active_phase_idx(active_phase, game_dict):
     """ Get the active phase's index. """
@@ -191,8 +296,10 @@ def execute_phase(game_dict, active_phase):
                         if unit.status == "active":
                             command = strategy_dict[battalion.strategy](unit, game_dict)
                             process_command(unit, command, game_dict)
-                            while units_animating(game_dict):
+                            while units_animating(game_dict) and game_dict["game_running"]:
                                 sleap_waiting_for_other_thread()
+                            if not game_dict["game_running"]:
+                                return
     #update_phase_gui(game_dict)
 
 def next_phase(game_dict):

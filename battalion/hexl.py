@@ -1,10 +1,10 @@
-""" Manage hexs """
+""" Manage hexes """
 from random import randrange
 from pygame import draw #pylint: disable=E0401
 
 directions = ("N", "NE", "SE", "S", "SW", "NW")
-def draw_hexs(screen, game_dict):
-    """ draw the hexs """
+def draw_hexes(screen, game_dict):
+    """ draw the hexes """
     hexagon = ((0.0, 0.0),(0.333, -0.5), (1.0, -0.5), (1.333, 0.0), (1.0, 0.5), (0.333, 0.5))
     for x in range(game_dict['map_width']):
         for y in range(game_dict['map_height']):
@@ -18,9 +18,10 @@ def draw_hexs(screen, game_dict):
                     y_offset + game_dict['map_multiplier'] + \
                     coordinate[1]*game_dict['map_multiplier']))
             hex_color = (0, 100, 0)
-            if game_dict["evacuation_hex"] and game_dict["evacuation_hex"][0] == x \
-                and game_dict["evacuation_hex"][1] == y:
+            if game_dict["evacuation_hex"] == (x, y):
                 hex_color = (190, 190, 0)
+            if game_dict["bears_den"] == (x, y):
+                hex_color = (60, 0, 60)
             hex_outline_color = (0, 0, 0)
             draw.polygon(screen, hex_color, hex_poly, 0)
             draw.lines(screen, hex_outline_color, True, hex_poly, 3)
@@ -103,13 +104,13 @@ def hex_occupied(hexx, game_dict):
                     return unit
     return None
 
-def hex_next_to_enemies(hexx, enemy_player, game_dict):
+def hex_next_to_enemies(hexx, enemy_player_num, game_dict):
     """ Search the 6 adjacent hexes to see if an enemy is there.  Return True/False. """
     for direct in directions:
         adj_hex = get_hex_coords_from_direction(direct, hexx, game_dict)
         if adj_hex is not None:
             eunit = hex_occupied(adj_hex, game_dict)
-            if eunit and eunit.player == enemy_player:
+            if eunit and eunit.player_num == enemy_player_num:
                 return True
     return False
 

@@ -83,9 +83,9 @@ def create_bears_den_scenario(game_dict, logname, randomize):
     def bears_den_player_0_victory_condition(game_dict):
         """ Player 0 "Bear's Den" Scenario Wolf victory conditions """
         # Any units occupying the bears den ?
-        for battalion in game_dict["players"][1].battalion:
+        for battalion in game_dict["players"][0].battalion:
             for unit in battalion.units:
-                if unit.hex in game_dict["bears_den"]:
+                if unit.hex == game_dict["bears_den"]:
                     game_dict["game_running"] = False
                     game_dict["logger"].info("Victory Red \"Bear's Den captured!\"")
                     return "Victory Red: Bear's Den captured!"
@@ -106,7 +106,6 @@ def create_bears_den_scenario(game_dict, logname, randomize):
             return "Victory Blu: Turn 10 Blufor still alive."
         return None
 
-    game_dict["victory_condition"] = (bears_den_player_0_victory_condition, bears_den_player_1_victory_condition)
     game_dict["bears_den"] = (18, 9)
     game_dict["evacuation_hex"] = None
     game_dict['map_width'] = 21
@@ -114,56 +113,57 @@ def create_bears_den_scenario(game_dict, logname, randomize):
     game_dict['map_multiplier'] = 24
     with open (logname, mode='w', encoding="utf-8") as f:
         f.write(f"{game_dict.__str__()}\n")
+    game_dict["victory_condition"] = (bears_den_player_0_victory_condition, bears_den_player_1_victory_condition)
     game_dict["players"] = (Player(0, "Red"), Player(1, "Blu"))
 
     game_dict["players"][0].battalion.append(Battalion(0, "von Bock"))
     game_dict["players"][0].battalion[0].strategy = "Capture City and Destroy"
     game_dict["players"][0].battalion[0].units.append( \
-        Unit(unit_type="panzer", name="1st Panzer", attack=4, strength=2, movement_allowance=2, \
-            starting_hex=(0,2), player=0))
+        Unit(unit_type="panzer", name="1st Panzer", attack=4, strength=2, movement_allowance=3, \
+            starting_hex=(0,2), player_num=0))
     game_dict["players"][0].battalion[0].units.append( \
-        Unit(unit_type="panzer", name="2nd Panzer", attack=4, strength=2, movement_allowance=2, \
-            starting_hex=(0,4), player=0))
+        Unit(unit_type="panzer", name="2nd Panzer", attack=4, strength=2, movement_allowance=3, \
+            starting_hex=(0,4), player_num=0))
     game_dict["players"][0].battalion[0].units.append( \
-        Unit(unit_type="panzer", name="3rd Panzer", attack=4, strength=2, movement_allowance=2, \
-            starting_hex=(0,6), player=0))
+        Unit(unit_type="panzer", name="3rd Panzer", attack=4, strength=2, movement_allowance=3, \
+            starting_hex=(0,6), player_num=0))
 
     game_dict["players"][0].battalion.append(Battalion(0, "von Kluge"))
     game_dict["players"][0].battalion[1].strategy = "Capture City and Destroy"
 
     game_dict["players"][0].battalion[1].units.append( \
         Unit(unit_type="panzer", name="4th Panzer", attack=4, strength=2, movement_allowance=3, \
-            starting_hex=(0,12), player=0))
+            starting_hex=(0,12), player_num=0))
     game_dict["players"][0].battalion[1].units.append( \
         Unit(unit_type="panzer", name="5th Panzer", attack=4, strength=2, movement_allowance=3, \
-            starting_hex=(0,14), player=0))
+            starting_hex=(0,14), player_num=0))
     game_dict["players"][0].battalion[1].units.append( \
         Unit(unit_type="panzer", name="6th Panzer", attack=4, strength=2, movement_allowance=3, \
-            starting_hex=(0,16), player=0))
+            starting_hex=(0,16), player_num=0))
 
     game_dict["players"][1].battalion.append(Battalion(1, "Zhukov"))
     game_dict["players"][1].battalion[0].strategy = "Defend City and Delay"
     game_dict["players"][1].battalion[0].units.append( \
         Unit(unit_type="infantry", name="1st Division", attack=2, strength=2, movement_allowance=2, \
-            starting_hex=(4,3), player=1))
+            starting_hex=(4,3), player_num=1))
     game_dict["players"][1].battalion[0].units.append( \
         Unit(unit_type="infantry", name="2nd Division", attack=2, strength=2, movement_allowance=2, \
-            starting_hex=(4,5), player=1))
+            starting_hex=(4,5), player_num=1))
     game_dict["players"][1].battalion[0].units.append( \
         Unit(unit_type="infantry", name="3rd Division", attack=2, strength=2, movement_allowance=2, \
-            starting_hex=(4,7), player=1))
+            starting_hex=(4,7), player_num=1))
     game_dict["players"][1].battalion[0].units.append( \
         Unit(unit_type="infantry", name="Den Guard", attack=2, strength=2, movement_allowance=0, \
-            starting_hex=game_dict["bears_den"], player=1))
+            starting_hex=game_dict["bears_den"], player_num=1))
 
     game_dict["players"][1].battalion.append(Battalion(1, "Timoshenko"))
     game_dict["players"][1].battalion[1].strategy = "Defend City and Delay"
     game_dict["players"][1].battalion[1].units.append( \
-        Unit(unit_type="infantry", name="1st Division", attack=2, strength=2, movement_allowance=2, \
-            starting_hex=(4,11), player=1))
+        Unit(unit_type="infantry", name="4th Division", attack=2, strength=2, movement_allowance=2, \
+            starting_hex=(4,11), player_num=1))
     game_dict["players"][1].battalion[1].units.append( \
-        Unit(unit_type="infantry", name="2nd Division", attack=2, strength=2, movement_allowance=2, \
-            starting_hex=(4,13), player=1))
+        Unit(unit_type="infantry", name="5th Division", attack=2, strength=2, movement_allowance=2, \
+            starting_hex=(4,13), player_num=1))
     game_dict["players"][1].battalion[1].units.append( \
-        Unit(unit_type="infantry", name="3rd Division", attack=2, strength=2, movement_allowance=2, \
-            starting_hex=(4,15), player=1))
+        Unit(unit_type="infantry", name="6th Division", attack=2, strength=2, movement_allowance=2, \
+            starting_hex=(4,15), player_num=1))
